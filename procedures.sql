@@ -313,6 +313,93 @@ BEGIN
 END
 GO
 
+-- 18. GetCompanyStats (Complexity 4): Companies with highest fail rates
+-- 1. JOIN Companies (Base)
+-- 2. JOIN Questions (Relation 1)
+-- 3. JOIN UserProgress (Relation 2, Analysis)
+-- 4. WHERE (Filter)
+-- 5. GROUP BY (Aggregation)
+IF OBJECT_ID('GetCompanyStats', 'P') IS NOT NULL DROP PROCEDURE GetCompanyStats;
+GO
+
+CREATE PROCEDURE GetCompanyStats
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT TOP 5
+        c.Name,
+        COUNT(up.ID) AS TotalAttempts,
+        SUM(CASE WHEN up.IsCorrect = 0 THEN 1 ELSE 0 END) AS FailCount
+    FROM Companies c
+    JOIN Questions q ON c.ID = q.CompanyID
+    JOIN UserProgress up ON q.ID = up.QuestionID
+    WHERE up.ID IS NOT NULL
+    GROUP BY c.Name
+    ORDER BY FailCount DESC;
+END
+GO
+
+-- 19. GetTopicStats (Complexity 6): Topic Performance
+-- 1. JOIN Topics
+-- 2. JOIN Questions
+-- 3. JOIN UserProgress
+-- 4. JOIN QuizAttempts (Context)
+-- 5. WHERE CompletedAt NOT NULL
+-- 6. GROUP BY
+-- 7. HAVING Count > 0
+IF OBJECT_ID('GetTopicStats', 'P') IS NOT NULL DROP PROCEDURE GetTopicStats;
+GO
+
+CREATE PROCEDURE GetTopicStats
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT 
+        t.Name,
+        COUNT(DISTINCT qa.ID) AS QuizzesTaken,
+        AVG(CAST(up.IsCorrect AS FLOAT)) * 100 AS SuccessRate
+    FROM Topics t
+    JOIN Questions q ON t.ID = q.TopicID
+    JOIN UserProgress up ON q.ID = up.QuestionID
+    JOIN QuizAttempts qa ON up.AttemptID = qa.ID
+    WHERE qa.CompletedAt IS NOT NULL
+    GROUP BY t.Name
+    HAVING COUNT(up.ID) > 0
+    ORDER BY SuccessRate DESC;
+END
+GO
+
+-- 20. GetUserLeaderboard (Complexity 7): User Engagement
+-- 1. JOIN Users
+-- 2. JOIN QuizAttempts
+-- 3. JOIN Reviews
+-- 4. JOIN Contributions
+-- 5. WHERE Date Check
+-- 6. GROUP BY
+-- 7. HAVING Score > 0
+IF OBJECT_ID('GetUserLeaderboard', 'P') IS NOT NULL DROP PROCEDURE GetUserLeaderboard;
+GO
+
+CREATE PROCEDURE GetUserLeaderboard
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT TOP 10
+        u.Username,
+        COUNT(DISTINCT qa.ID) AS QuizzesCompleted,
+        COUNT(DISTINCT r.ID) AS ReviewsGiven,
+        COUNT(DISTINCT c.ID) AS ContributionsMade,
+        (COUNT(DISTINCT qa.ID) * 10 + COUNT(DISTINCT r.ID) * 5 + COUNT(DISTINCT c.ID) * 20) AS EngagementScore
+    FROM Users u
+    LEFT JOIN QuizAttempts qa ON u.ID = qa.UserID AND qa.CompletedAt IS NOT NULL
+    LEFT JOIN Reviews r ON u.ID = r.UserID
+    LEFT JOIN Contributions c ON u.ID = c.UserID
+    GROUP BY u.Username
+    HAVING (COUNT(DISTINCT qa.ID) * 10 + COUNT(DISTINCT r.ID) * 5 + COUNT(DISTINCT c.ID) * 20) > 0
+    ORDER BY EngagementScore DESC;
+END
+GO
+
 -- 14. ApproveContribution: Approves a contribution and moves it to Questions/Answers
 IF OBJECT_ID('ApproveContribution', 'P') IS NOT NULL DROP PROCEDURE ApproveContribution;
 GO
@@ -408,3 +495,144 @@ BEGIN
     ORDER BY c.Date DESC;
 END
 GO
+
+-- 21. GetUserByID: Retrieved user details by ID
+IF OBJECT_ID('GetUserByID', 'P') IS NOT NULL DROP PROCEDURE GetUserByID;
+GO
+
+CREATE PROCEDURE GetUserByID
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Username, Role FROM Users WHERE ID = @UserID;
+END
+GO
+
+-- 22. GetQuizDetails: Retrieves title/description for a quiz
+IF OBJECT_ID('GetQuizDetails', 'P') IS NOT NULL DROP PROCEDURE GetQuizDetails;
+GO
+
+CREATE PROCEDURE GetQuizDetails
+    @QuizID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ID, Title, Description FROM Quizzes WHERE ID = @QuizID;
+END
+GO
+
+-- 23. CheckPendingAttempt: Checks if a user has an incomplete attempt for a quiz
+IF OBJECT_ID('CheckPendingAttempt', 'P') IS NOT NULL DROP PROCEDURE CheckPendingAttempt;
+GO
+
+CREATE PROCEDURE CheckPendingAttempt
+    @UserID INT,
+    @QuizID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT TOP 1 1 FROM QuizAttempts WHERE UserID = @UserID AND QuizID = @QuizID AND CompletedAt IS NULL;
+END
+GO
+
+-- 24. GetAttemptProgressCount: Returns the number of answered questions in an attempt
+IF OBJECT_ID('GetAttemptProgressCount', 'P') IS NOT NULL DROP PROCEDURE GetAttemptProgressCount;
+GO
+
+CREATE PROCEDURE GetAttemptProgressCount
+    @AttemptID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT COUNT(*) FROM UserProgress WHERE AttemptID = @AttemptID;
+END
+GO
+
+-- 25. GetQuestionDetails: Returns text and difficulty for a question
+IF OBJECT_ID('GetQuestionDetails', 'P') IS NOT NULL DROP PROCEDURE GetQuestionDetails;
+GO
+
+CREATE PROCEDURE GetQuestionDetails
+    @QuestionID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Text, Difficulty FROM Questions WHERE ID = @QuestionID;
+END
+GO
+
+-- 26. GetAllTopics: Returns all topics
+IF OBJECT_ID('GetAllTopics', 'P') IS NOT NULL DROP PROCEDURE GetAllTopics;
+GO
+
+CREATE PROCEDURE GetAllTopics
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ID, Name FROM Topics;
+END
+GO
+
+-- 27. GetQuizListSimple: Returns ID and Title of all quizzes (for admin dropdowns)
+IF OBJECT_ID('GetQuizListSimple', 'P') IS NOT NULL DROP PROCEDURE GetQuizListSimple;
+GO
+
+CREATE PROCEDURE GetQuizListSimple
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ID, Title FROM Quizzes;
+END
+GO
+
+-- 28. GetTestUsers: Returns IDs of users with username starting with 'user_'
+IF OBJECT_ID('GetTestUsers', 'P') IS NOT NULL DROP PROCEDURE GetTestUsers;
+GO
+
+CREATE PROCEDURE GetTestUsers
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ID FROM Users WHERE Username LIKE 'user_%';
+END
+GO
+
+-- 29. GetQuestionIDsByQuiz: Returns IDs of questions for a specific quiz
+IF OBJECT_ID('GetQuestionIDsByQuiz', 'P') IS NOT NULL DROP PROCEDURE GetQuestionIDsByQuiz;
+GO
+
+CREATE PROCEDURE GetQuestionIDsByQuiz
+    @QuizID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ID FROM Questions WHERE QuizID = @QuizID;
+END
+GO
+
+-- 30. GetAnswersWithCorrectness: Returns AnswerID and IsCorrect for a question
+IF OBJECT_ID('GetAnswersWithCorrectness', 'P') IS NOT NULL DROP PROCEDURE GetAnswersWithCorrectness;
+GO
+
+CREATE PROCEDURE GetAnswersWithCorrectness
+    @QuestionID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ID, IsCorrect FROM Answers WHERE QuestionID = @QuestionID;
+END
+GO
+
+-- 31. GetAllQuizIDs: Returns just IDs of all quizzes
+IF OBJECT_ID('GetAllQuizIDs', 'P') IS NOT NULL DROP PROCEDURE GetAllQuizIDs;
+GO
+
+CREATE PROCEDURE GetAllQuizIDs
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT ID FROM Quizzes;
+END
+GO
+

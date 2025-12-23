@@ -32,7 +32,7 @@ def login_required(view):
         # Verify user still exists in DB and matches session data
         try:
             db = get_db()
-            cursor = db.execute_query("SELECT Username, Role FROM Users WHERE ID = ?", (session['user_id'],))
+            cursor = db.execute_query("EXEC GetUserByID ?", (session['user_id'],))
             row = cursor.fetchone()
             
             if not row:
@@ -182,13 +182,13 @@ def quiz_intro(quiz_id):
     has_pending = False
     try:
         db = get_db()
-        cursor = db.execute_query("SELECT ID, Title, Description FROM Quizzes WHERE ID = ?", (quiz_id,))
+        cursor = db.execute_query("EXEC GetQuizDetails ?", (quiz_id,))
         row = cursor.fetchone()
         if row:
             quiz = {'id': row[0], 'title': row[1], 'description': row[2]}
             
         # Check for pending attempt
-        cursor = db.execute_query("SELECT TOP 1 1 FROM QuizAttempts WHERE UserID = ? AND QuizID = ? AND CompletedAt IS NULL", (session['user_id'], quiz_id))
+        cursor = db.execute_query("EXEC CheckPendingAttempt ?, ?", (session['user_id'], quiz_id))
         if cursor.fetchone():
             has_pending = True
             
@@ -225,7 +225,7 @@ def start_quiz(quiz_id):
             return redirect(url_for('quizzes'))
 
         # Determine current progress
-        cursor = db.execute_query("SELECT COUNT(*) FROM UserProgress WHERE AttemptID = ?", (attempt_id,))
+        cursor = db.execute_query("EXEC GetAttemptProgressCount ?", (attempt_id,))
         progress_row = cursor.fetchone()
         current_index = progress_row[0]
         
@@ -257,7 +257,7 @@ def quiz_question():
         db = get_db()
 
         # Get Question Text
-        cursor = db.execute_query("SELECT Text, Difficulty FROM Questions WHERE ID = ?", (current_q_id,))
+        cursor = db.execute_query("EXEC GetQuestionDetails ?", (current_q_id,))
         q_row = cursor.fetchone()
         question = {'id': current_q_id, 'text': q_row[0], 'difficulty': q_row[1]}
         
@@ -448,7 +448,7 @@ def contribute():
     try:
         db = get_db()
         # Topics
-        cursor = db.execute_query("SELECT ID, Name FROM Topics")
+        cursor = db.execute_query("EXEC GetAllTopics")
         rows = cursor.fetchall()
         for row in rows:
             topics.append({'id': row[0], 'name': row[1]})
@@ -475,6 +475,54 @@ def contribute():
 def admin_dashboard():
     contributions = []
     quizzes = []
+    company_stats = {'labels': [], 'data': []}
+    topic_stats = {'labels': [], 'data': []}
+    leaderboard = []
+    
+    try:
+        db = get_db()
+
+            
+        # Report 1: Company Stats (Complexity 4)
+        cursor = db.execute_query("EXEC GetCompanyStats")
+        c_rows = cursor.fetchall()
+        for row in c_rows:
+            company_stats['labels'].append(row[0])
+            company_stats['data'].append(row[2]) # Fail Count
+            
+        # Report 2: Topic Stats (Complexity 6)
+        cursor = db.execute_query("EXEC GetTopicStats")
+        t_rows = cursor.fetchall()
+        for row in t_rows:
+            topic_stats['labels'].append(row[0])
+            topic_stats['data'].append(row[2]) # Success Rate
+            
+        # Report 3: Leaderboard (Complexity 7)
+        cursor = db.execute_query("EXEC GetUserLeaderboard")
+        l_rows = cursor.fetchall()
+        for row in l_rows:
+            leaderboard.append({
+                'username': row[0],
+                'quizzes': row[1],
+                'reviews': row[2],
+                'contributions': row[3],
+                'score': row[4]
+            })
+            
+        db.closeConnection()
+    except Exception as e:
+        flash(f"Error loading admin dashboard: {e}", 'error')
+        
+    return render_template('admin_dashboard.html', 
+                         company_stats=company_stats,
+                         topic_stats=topic_stats,
+                         leaderboard=leaderboard)
+
+@app.route('/admin/contributions')
+@admin_required
+def admin_contributions():
+    contributions = []
+    quizzes = []
     try:
         db = get_db()
         
@@ -495,16 +543,16 @@ def admin_dashboard():
             })
             
         # Get quizzes for dropdown
-        cursor = db.execute_query("SELECT ID, Title FROM Quizzes")
+        cursor = db.execute_query("EXEC GetQuizListSimple")
         q_rows = cursor.fetchall()
         for row in q_rows:
             quizzes.append({'id': row[0], 'title': row[1]})
             
         db.closeConnection()
     except Exception as e:
-        flash(f"Error loading admin dashboard: {e}", 'error')
+        flash(f"Error loading contributions: {e}", 'error')
         
-    return render_template('admin_dashboard.html', contributions=contributions, quizzes=quizzes)
+    return render_template('admin_contributions.html', contributions=contributions, quizzes=quizzes)
 
 @app.route('/admin/approve', methods=['POST'])
 @admin_required
@@ -524,7 +572,7 @@ def approve_contribution():
     except Exception as e:
         flash(f"Error approving contribution: {e}", 'error')
         
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin_contributions'))
 
 @app.route('/admin/reject', methods=['POST'])
 @admin_required
@@ -539,7 +587,7 @@ def reject_contribution():
     except Exception as e:
         flash(f"Error rejecting contribution: {e}", 'error')
         
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin_contributions'))
 
 if __name__ == '__main__':
     app.run(debug=True)
