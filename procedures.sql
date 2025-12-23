@@ -239,3 +239,145 @@ BEGIN
     WHERE up.AttemptID = @AttemptID;
 END
 GO
+
+-- 12. AddContribution: Adds a new contribution
+IF OBJECT_ID('AddContribution', 'P') IS NOT NULL DROP PROCEDURE AddContribution;
+GO
+
+CREATE PROCEDURE AddContribution
+    @UserID INT,
+    @QuestionText NVARCHAR(MAX),
+    @CorrectAnswer NVARCHAR(MAX),
+    @WrongAnswer1 NVARCHAR(MAX),
+    @WrongAnswer2 NVARCHAR(MAX),
+    @WrongAnswer3 NVARCHAR(MAX),
+    @TopicID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO Contributions (UserID, QuestionText, CorrectAnswer, WrongAnswer1, WrongAnswer2, WrongAnswer3, TopicID)
+    VALUES (@UserID, @QuestionText, @CorrectAnswer, @WrongAnswer1, @WrongAnswer2, @WrongAnswer3, @TopicID);
+END
+GO
+
+-- 13. GetPendingContributions: Gets all pending contributions
+IF OBJECT_ID('GetPendingContributions', 'P') IS NOT NULL DROP PROCEDURE GetPendingContributions;
+GO
+
+CREATE PROCEDURE GetPendingContributions
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT 
+        c.ID,
+        u.Username,
+        c.QuestionText,
+        c.CorrectAnswer,
+        c.WrongAnswer1,
+        c.WrongAnswer2,
+        c.WrongAnswer3,
+        t.Name AS TopicName,
+        c.Date
+    FROM Contributions c
+    JOIN Users u ON c.UserID = u.ID
+    JOIN Topics t ON c.TopicID = t.ID
+    WHERE c.Status = 'Pending'
+    ORDER BY c.Date DESC;
+END
+GO
+
+-- 14. ApproveContribution: Approves a contribution and moves it to Questions/Answers
+IF OBJECT_ID('ApproveContribution', 'P') IS NOT NULL DROP PROCEDURE ApproveContribution;
+GO
+
+CREATE PROCEDURE ApproveContribution
+    @ContributionID INT,
+    @TargetQuizID INT,
+    @Difficulty NVARCHAR(20),
+    @CompanyID INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    
+    BEGIN TRANSACTION;
+    
+    BEGIN TRY
+        -- Get Contribution Data
+        DECLARE @QuestionText NVARCHAR(MAX);
+        DECLARE @CorrectAnswer NVARCHAR(MAX);
+        DECLARE @Wrong1 NVARCHAR(MAX);
+        DECLARE @Wrong2 NVARCHAR(MAX);
+        DECLARE @Wrong3 NVARCHAR(MAX);
+        DECLARE @TopicID INT;
+        
+        SELECT 
+            @QuestionText = QuestionText,
+            @CorrectAnswer = CorrectAnswer,
+            @Wrong1 = WrongAnswer1,
+            @Wrong2 = WrongAnswer2,
+            @Wrong3 = WrongAnswer3,
+            @TopicID = TopicID
+        FROM Contributions WHERE ID = @ContributionID;
+        
+        -- Insert into Questions
+        DECLARE @NewQuestionID INT;
+        INSERT INTO Questions (QuizID, Text, Difficulty, CompanyID, TopicID)
+        VALUES (@TargetQuizID, @QuestionText, @Difficulty, @CompanyID, @TopicID);
+        
+        SET @NewQuestionID = SCOPE_IDENTITY();
+        
+        -- Insert Answers
+        INSERT INTO Answers (QuestionID, Text, IsCorrect) VALUES
+        (@NewQuestionID, @CorrectAnswer, 1),
+        (@NewQuestionID, @Wrong1, 0),
+        (@NewQuestionID, @Wrong2, 0),
+        (@NewQuestionID, @Wrong3, 0);
+        
+        -- Update Contribution Status
+        UPDATE Contributions SET Status = 'Approved' WHERE ID = @ContributionID;
+        
+        COMMIT TRANSACTION;
+        SELECT 1 AS Result;
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+-- 15. RejectContribution: Rejects a contribution
+IF OBJECT_ID('RejectContribution', 'P') IS NOT NULL DROP PROCEDURE RejectContribution;
+GO
+
+CREATE PROCEDURE RejectContribution
+    @ContributionID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Contributions SET Status = 'Rejected' WHERE ID = @ContributionID;
+END
+GO
+
+-- 16. GetMyContributions: Retrieves contributions for a specific user
+IF OBJECT_ID('GetMyContributions', 'P') IS NOT NULL DROP PROCEDURE GetMyContributions;
+GO
+
+CREATE PROCEDURE GetMyContributions
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT 
+        c.QuestionText,
+        t.Name AS TopicName,
+        c.Status,
+        c.Date,
+        c.ID
+    FROM Contributions c
+    JOIN Topics t ON c.TopicID = t.ID
+    WHERE c.UserID = @UserID
+    ORDER BY c.Date DESC;
+END
+GO

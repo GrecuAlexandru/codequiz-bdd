@@ -8,6 +8,11 @@ INSERT INTO Companies (Name, Description) VALUES
 ('Amazon', 'E-commerce and Cloud');
 GO
 
+-- Seed Users with Admin (admin/admin123)
+INSERT INTO Users (Username, PasswordHash, Email, Role) VALUES
+('admin', 'scrypt:32768:8:1$xlyf7fxHRJOnxt0Y$685eeecb2f705642685dbeb7a8ba0600049b5e8f8eeb27e6a0898ab18a7186ae3fbb1078e0cf49c2b5b0df288c0b5e5ea372a02bdf9636c000049fabe3daa292', 'admin@codequiz.com', 'Admin');
+GO
+
 -- Seed Topics
 INSERT INTO Topics (Name, Description) VALUES 
 ('Systems Programming', 'Low-level details, OS, Concurrency'),

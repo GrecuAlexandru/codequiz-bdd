@@ -28,6 +28,46 @@ def login_required(view):
         if 'user_id' not in session:
             flash('Please log in to access this page.', 'error')
             return redirect(url_for('login'))
+        
+        # Verify user still exists in DB and matches session data
+        try:
+            db = get_db()
+            cursor = db.execute_query("SELECT Username, Role FROM Users WHERE ID = ?", (session['user_id'],))
+            row = cursor.fetchone()
+            
+            if not row:
+                # User ID not found
+                session.clear()
+                db.closeConnection()
+                flash('Session expired. Please log in again.', 'error')
+                return redirect(url_for('login'))
+                
+            db_username = row[0]
+            db_role = row[1]
+            
+            # Check if session data matches current DB data (handles DB resets where ID is reused)
+            if db_username != session.get('username') or db_role != session.get('role'):
+                session.clear()
+                db.closeConnection()
+                flash('Session invalid (data mismatch). Please log in again.', 'error')
+                return redirect(url_for('login'))
+                
+            db.closeConnection()
+        except Exception:
+            session.clear()
+            flash('Session validation failed. Please log in again.', 'error')
+            return redirect(url_for('login'))
+            
+        return view(**kwargs)
+    return wrapped_view
+
+# Decorator for admin required
+def admin_required(view):
+    @functools.wraps(view)
+    def wrapped_view(**kwargs):
+        if 'role' not in session or session['role'] != 'Admin':
+            flash('Access denied. Admins only.', 'error')
+            return redirect(url_for('index'))
         return view(**kwargs)
     return wrapped_view
 
@@ -353,6 +393,128 @@ def quiz_history(attempt_id):
         return redirect(url_for('profile'))
         
     return render_template('quiz_history.html', details=details)
+
+
+@app.route('/contribute', methods=('GET', 'POST'))
+@login_required
+def contribute():
+    if request.method == 'POST':
+        question_text = request.form['question_text']
+        correct_answer = request.form['correct_answer']
+        wrong1 = request.form['wrong1']
+        wrong2 = request.form['wrong2']
+        wrong3 = request.form['wrong3']
+        topic_id = request.form['topic_id']
+        
+        try:
+            db = get_db()
+            db.execute_query(
+                "EXEC AddContribution ?, ?, ?, ?, ?, ?, ?",
+                (session['user_id'], question_text, correct_answer, wrong1, wrong2, wrong3, topic_id)
+            )
+            db.closeConnection()
+            flash('Contribution submitted for review!', 'success')
+            return redirect(url_for('contribute'))
+        except Exception as e:
+            flash(f"Error submitting contribution: {e}", 'error')
+    
+    topics = []
+    my_contributions = []
+    try:
+        db = get_db()
+        # Topics
+        cursor = db.execute_query("SELECT ID, Name FROM Topics")
+        rows = cursor.fetchall()
+        for row in rows:
+            topics.append({'id': row[0], 'name': row[1]})
+            
+        # User History
+        cursor = db.execute_query("EXEC GetMyContributions ?", (session['user_id'],))
+        rows = cursor.fetchall()
+        for row in rows:
+            my_contributions.append({
+                'question_text': row[0],
+                'topic': row[1],
+                'status': row[2],
+                'date': row[3].strftime('%Y-%m-%d %H:%M')
+            })
+            
+        db.closeConnection()
+    except Exception as e:
+        flash(f"Error loading data: {e}", 'error')
+        
+    return render_template('contribute.html', topics=topics, my_contributions=my_contributions)
+
+@app.route('/admin')
+@admin_required
+def admin_dashboard():
+    contributions = []
+    quizzes = []
+    try:
+        db = get_db()
+        
+        # Get pending contributions
+        cursor = db.execute_query("EXEC GetPendingContributions")
+        rows = cursor.fetchall()
+        for row in rows:
+            contributions.append({
+                'id': row[0],
+                'username': row[1],
+                'question_text': row[2],
+                'correct_answer': row[3],
+                'wrong1': row[4],
+                'wrong2': row[5],
+                'wrong3': row[6],
+                'topic': row[7],
+                'date': row[8].strftime('%Y-%m-%d %H:%M')
+            })
+            
+        # Get quizzes for dropdown
+        cursor = db.execute_query("SELECT ID, Title FROM Quizzes")
+        q_rows = cursor.fetchall()
+        for row in q_rows:
+            quizzes.append({'id': row[0], 'title': row[1]})
+            
+        db.closeConnection()
+    except Exception as e:
+        flash(f"Error loading admin dashboard: {e}", 'error')
+        
+    return render_template('admin_dashboard.html', contributions=contributions, quizzes=quizzes)
+
+@app.route('/admin/approve', methods=['POST'])
+@admin_required
+def approve_contribution():
+    contribution_id = request.form['contribution_id']
+    target_quiz_id = request.form['target_quiz_id']
+    difficulty = request.form['difficulty']
+    
+    try:
+        db = get_db()
+        db.execute_query(
+            "EXEC ApproveContribution ?, ?, ?",
+            (contribution_id, target_quiz_id, difficulty)
+        )
+        db.closeConnection()
+        flash('Contribution approved!', 'success')
+    except Exception as e:
+        flash(f"Error approving contribution: {e}", 'error')
+        
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/reject', methods=['POST'])
+@admin_required
+def reject_contribution():
+    contribution_id = request.form['contribution_id']
+    
+    try:
+        db = get_db()
+        db.execute_query("EXEC RejectContribution ?", (contribution_id,))
+        db.closeConnection()
+        flash('Contribution rejected.', 'success')
+    except Exception as e:
+        flash(f"Error rejecting contribution: {e}", 'error')
+        
+    return redirect(url_for('admin_dashboard'))
 
 if __name__ == '__main__':
     app.run(debug=True)
