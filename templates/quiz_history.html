@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Quiz History - Codequiz{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Attempt Details</h1>
+        <a href="{{ url_for('profile') }}" class="text-blue-600 hover:underline dark:text-blue-500">Back to Profile</a>
+    </div>
+
+    <div class="space-y-4">
+        {% for item in details %}
+        <div class="p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex justify-between items-start mb-2">
+                <h5 class="text-lg font-bold tracking-tight text-gray-900 dark:text-white">{{ loop.index }}. {{ item.question }}</h5>
+                <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-300 border border-gray-500">{{ item.difficulty }}</span>
+            </div>
+            
+            <p class="mb-3 font-normal text-gray-700 dark:text-gray-400">
+                Your Answer: <span class="font-semibold {{ 'text-green-600 dark:text-green-400' if item.is_correct else 'text-red-600 dark:text-red-400' }}">
+                    {{ item.answer }}
+                </span>
+            </p>
+            
+            {% if not item.is_correct %}
+            <!-- Ideally we stored the correct answer text or ID too, checking if we have it in the procedure -->
+             <p class="text-sm text-gray-500 dark:text-gray-400 italic">
+                (We will display the correct answer in a future update)
+            </p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

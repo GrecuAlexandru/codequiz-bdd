@@ -1,0 +1,122 @@
+SET NOCOUNT ON;
+GO
+
+-- Order matters because of foreign keys
+IF OBJECT_ID('UserProgress', 'U') IS NOT NULL DROP TABLE UserProgress;
+GO
+IF OBJECT_ID('QuizQuestions', 'U') IS NOT NULL DROP TABLE QuizQuestions;
+GO
+IF OBJECT_ID('QuizAttempts', 'U') IS NOT NULL DROP TABLE QuizAttempts;
+GO
+IF OBJECT_ID('Reviews', 'U') IS NOT NULL DROP TABLE Reviews;
+GO
+IF OBJECT_ID('Contributions', 'U') IS NOT NULL DROP TABLE Contributions;
+GO
+IF OBJECT_ID('Answers', 'U') IS NOT NULL DROP TABLE Answers;
+GO
+IF OBJECT_ID('Questions', 'U') IS NOT NULL DROP TABLE Questions;
+GO
+IF OBJECT_ID('Quizzes', 'U') IS NOT NULL DROP TABLE Quizzes;
+GO
+IF OBJECT_ID('Topics', 'U') IS NOT NULL DROP TABLE Topics;
+GO
+IF OBJECT_ID('Companies', 'U') IS NOT NULL DROP TABLE Companies;
+GO
+IF OBJECT_ID('Users', 'U') IS NOT NULL DROP TABLE Users;
+GO
+
+
+CREATE TABLE Users (
+    ID INT IDENTITY(1,1) PRIMARY KEY,
+    Username NVARCHAR(50) NOT NULL UNIQUE,
+    PasswordHash NVARCHAR(255) NOT NULL,
+    Email NVARCHAR(100) NOT NULL UNIQUE,
+    Role NVARCHAR(20) DEFAULT 'User' CHECK (Role IN ('User', 'Admin')),
+    CreatedAt DATETIME DEFAULT GETDATE()
+);
+GO
+
+CREATE TABLE Companies (
+    ID INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(100) NOT NULL,
+    Description NVARCHAR(MAX)
+);
+GO
+
+CREATE TABLE Topics (
+    ID INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(100) NOT NULL,
+    Description NVARCHAR(MAX)
+);
+GO
+
+CREATE TABLE Quizzes (
+    ID INT IDENTITY(1,1) PRIMARY KEY,
+    Title NVARCHAR(100) NOT NULL,
+    Description NVARCHAR(MAX),
+    CreatedAt DATETIME DEFAULT GETDATE()
+);
+GO
+
+CREATE TABLE Questions (
+    ID INT IDENTITY(1,1) PRIMARY KEY,
+    QuizID INT FOREIGN KEY REFERENCES Quizzes(ID),
+    Text NVARCHAR(MAX) NOT NULL,
+    Difficulty NVARCHAR(20) CHECK (Difficulty IN ('Easy', 'Medium', 'Hard')),
+    CompanyID INT FOREIGN KEY REFERENCES Companies(ID),
+    TopicID INT FOREIGN KEY REFERENCES Topics(ID),
+    CreatedAt DATETIME DEFAULT GETDATE()
+);
+GO
+
+CREATE TABLE Answers (
+    ID INT IDENTITY(1,1) PRIMARY KEY,
+    QuestionID INT FOREIGN KEY REFERENCES Questions(ID) ON DELETE CASCADE,
+    Text NVARCHAR(MAX) NOT NULL,
+    IsCorrect BIT DEFAULT 0
+);
+GO
+
+CREATE TABLE QuizAttempts (
+    ID INT IDENTITY(1,1) PRIMARY KEY,
+    UserID INT FOREIGN KEY REFERENCES Users(ID),
+    QuizID INT FOREIGN KEY REFERENCES Quizzes(ID),
+    Score INT DEFAULT 0,
+    StartedAt DATETIME DEFAULT GETDATE(),
+    CompletedAt DATETIME NULL
+);
+GO
+
+CREATE TABLE UserProgress (
+    ID INT IDENTITY(1,1) PRIMARY KEY,
+    AttemptID INT FOREIGN KEY REFERENCES QuizAttempts(ID) ON DELETE CASCADE,
+    QuestionID INT FOREIGN KEY REFERENCES Questions(ID),
+    SelectedAnswerID INT FOREIGN KEY REFERENCES Answers(ID),
+    IsCorrect BIT NOT NULL,
+    AttemptDate DATETIME DEFAULT GETDATE()
+);
+GO
+
+CREATE TABLE Reviews (
+    ID INT IDENTITY(1,1) PRIMARY KEY,
+    UserID INT FOREIGN KEY REFERENCES Users(ID),
+    QuestionID INT FOREIGN KEY REFERENCES Questions(ID),
+    Rating INT CHECK (Rating >= 1 AND Rating <= 5),
+    Comment NVARCHAR(MAX),
+    Date DATETIME DEFAULT GETDATE()
+);
+GO
+
+CREATE TABLE Contributions (
+    ID INT IDENTITY(1,1) PRIMARY KEY,
+    UserID INT FOREIGN KEY REFERENCES Users(ID),
+    QuestionText NVARCHAR(MAX) NOT NULL,
+    CorrectAnswer NVARCHAR(MAX) NOT NULL,
+    WrongAnswer1 NVARCHAR(MAX) NOT NULL,
+    WrongAnswer2 NVARCHAR(MAX) NOT NULL,
+    WrongAnswer3 NVARCHAR(MAX) NOT NULL,
+    TopicID INT FOREIGN KEY REFERENCES Topics(ID),
+    Status NVARCHAR(20) DEFAULT 'Pending' CHECK (Status IN ('Pending', 'Approved', 'Rejected')),
+    Date DATETIME DEFAULT GETDATE()
+);
+GO
