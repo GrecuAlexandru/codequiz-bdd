@@ -232,11 +232,38 @@ BEGIN
         q.Text AS QuestionText,
         a.Text AS SelectedAnswer,
         a.IsCorrect,
-        q.Difficulty
+        q.Difficulty,
+        q.ID AS QuestionID
     FROM UserProgress up
     JOIN Questions q ON up.QuestionID = q.ID
     JOIN Answers a ON up.SelectedAnswerID = a.ID
     WHERE up.AttemptID = @AttemptID;
+END
+GO
+
+-- 17. AddReview: Adds a review for a question
+IF OBJECT_ID('AddReview', 'P') IS NOT NULL DROP PROCEDURE AddReview;
+GO
+
+CREATE PROCEDURE AddReview
+    @UserID INT,
+    @QuestionID INT,
+    @Rating INT,
+    @Comment NVARCHAR(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    -- Check if review already exists
+    IF EXISTS (SELECT 1 FROM Reviews WHERE UserID = @UserID AND QuestionID = @QuestionID)
+    BEGIN
+        UPDATE Reviews
+        SET Rating = @Rating, Comment = @Comment, Date = GETDATE()
+        WHERE UserID = @UserID AND QuestionID = @QuestionID;
+        RETURN;
+    END
+
+    INSERT INTO Reviews (UserID, QuestionID, Rating, Comment)
+    VALUES (@UserID, @QuestionID, @Rating, @Comment);
 END
 GO
 

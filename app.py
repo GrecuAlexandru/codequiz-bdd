@@ -385,14 +385,39 @@ def quiz_history(attempt_id):
                 'question': row[0],
                 'answer': row[1],
                 'is_correct': row[2],
-                'difficulty': row[3]
+                'difficulty': row[3],
+                'question_id': row[4]
             })
         db.closeConnection()
     except Exception as e:
         flash(f"Error loading history details: {e}", "error")
         return redirect(url_for('profile'))
         
-    return render_template('quiz_history.html', details=details)
+    return render_template('quiz_history.html', details=details, attempt_id=attempt_id)
+
+
+@app.route('/review', methods=['POST'])
+@login_required
+def submit_review():
+    question_id = request.form.get('question_id')
+    rating = request.form.get('rating')
+    comment = request.form.get('comment')
+    attempt_id = request.form.get('attempt_id') # To redirect back properly
+    
+    if not all([question_id, rating, attempt_id]):
+        flash('Rating is required', 'error')
+        return redirect(url_for('quiz_history', attempt_id=attempt_id))
+        
+    try:
+        db = get_db()
+        db.execute_query("EXEC AddReview ?, ?, ?, ?", 
+                           (session['user_id'], question_id, rating, comment))
+        db.closeConnection()
+        flash('Review submitted successfully!', 'success')
+    except Exception as e:
+        flash(f"Error submitting review: {e}", 'error')
+        
+    return redirect(url_for('quiz_history', attempt_id=attempt_id))
 
 
 @app.route('/contribute', methods=('GET', 'POST'))
