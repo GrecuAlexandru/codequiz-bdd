@@ -25,7 +25,7 @@ DB_HOST = "localhost"
 DB_PORT = 1433
 DB_NAME = "master"
 DB_USER = "sa"
-DB_PASSWORD = "ParolaComplexa123!"
+DB_PASSWORD = "parolaAiaPuternic4!"
 
 
 def get_db():
