@@ -1,31 +1,53 @@
 {% extends 'base.html' %}
-
 {% block title %}Question {{ index }} / {{ total }}{% endblock %}
-
 {% block content %}
-<div class="max-w-3xl mx-auto p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 mt-8">
+<div
+    class="max-w-3xl mx-auto p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 mt-8"
+>
     <div class="flex justify-between items-center mb-6">
-        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Question {{ index }} of {{ total }}</span>
-        <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-300 border border-gray-500">
+        <span class="text-sm font-medium text-gray-500 dark:text-gray-400"
+            >Question {{ index }} of {{ total }}</span
+        >
+        <span
+            class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-300 border border-gray-500"
+        >
             {{ question.difficulty }}
         </span>
     </div>
-    
-    <h3 class="mb-6 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{{ question.text }}</h3>
-    
+
+    <h3
+        class="mb-6 text-2xl font-bold tracking-tight text-gray-900 dark:text-white"
+    >
+        {{ question.text }}
+    </h3>
+
     <form action="{{ url_for('submit_answer') }}" method="POST">
-        <input type="hidden" name="question_id" value="{{ question.id }}">
-        
+        <input type="hidden" name="question_id" value="{{ question.id }}" />
+
         <div class="flex flex-col gap-4 mb-8">
             {% for answer in answers %}
-                <label class="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700 dark:bg-gray-900 transition-colors">
-                    <input type="radio" name="answer_id" value="{{ answer.id }}" required class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
-                    <span class="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300">{{ answer.text }}</span>
-                </label>
+            <label
+                class="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700 dark:bg-gray-900 transition-colors"
+            >
+                <input
+                    type="radio"
+                    name="answer_id"
+                    value="{{ answer.id }}"
+                    required
+                    class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                />
+                <span
+                    class="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300"
+                    >{{ answer.text }}</span
+                >
+            </label>
             {% endfor %}
         </div>
-        
-        <button type="submit" class="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
+
+        <button
+            type="submit"
+            class="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
+        >
             Submit Answer
         </button>
     </form>

@@ -39,21 +39,21 @@ GO
 CREATE TABLE Companies (
     ID INT IDENTITY(1,1) PRIMARY KEY,
     Name NVARCHAR(100) NOT NULL,
-    Description NVARCHAR(MAX)
+    Description NVARCHAR(4000)
 );
 GO
 
 CREATE TABLE Topics (
     ID INT IDENTITY(1,1) PRIMARY KEY,
     Name NVARCHAR(100) NOT NULL,
-    Description NVARCHAR(MAX)
+    Description NVARCHAR(4000)
 );
 GO
 
 CREATE TABLE Quizzes (
     ID INT IDENTITY(1,1) PRIMARY KEY,
     Title NVARCHAR(100) NOT NULL,
-    Description NVARCHAR(MAX),
+    Description NVARCHAR(4000),
     CreatedAt DATETIME DEFAULT GETDATE()
 );
 GO
@@ -61,7 +61,7 @@ GO
 CREATE TABLE Questions (
     ID INT IDENTITY(1,1) PRIMARY KEY,
     QuizID INT FOREIGN KEY REFERENCES Quizzes(ID),
-    Text NVARCHAR(MAX) NOT NULL,
+    Text NVARCHAR(4000) NOT NULL,
     Difficulty NVARCHAR(20) CHECK (Difficulty IN ('Easy', 'Medium', 'Hard')),
     CompanyID INT FOREIGN KEY REFERENCES Companies(ID),
     TopicID INT FOREIGN KEY REFERENCES Topics(ID),
@@ -72,7 +72,7 @@ GO
 CREATE TABLE Answers (
     ID INT IDENTITY(1,1) PRIMARY KEY,
     QuestionID INT FOREIGN KEY REFERENCES Questions(ID) ON DELETE CASCADE,
-    Text NVARCHAR(MAX) NOT NULL,
+    Text NVARCHAR(4000) NOT NULL,
     IsCorrect BIT DEFAULT 0
 );
 GO
@@ -102,7 +102,7 @@ CREATE TABLE Reviews (
     UserID INT FOREIGN KEY REFERENCES Users(ID),
     QuestionID INT FOREIGN KEY REFERENCES Questions(ID),
     Rating INT CHECK (Rating >= 1 AND Rating <= 5),
-    Comment NVARCHAR(MAX),
+    Comment NVARCHAR(4000),
     Date DATETIME DEFAULT GETDATE()
 );
 GO
@@ -110,11 +110,11 @@ GO
 CREATE TABLE Contributions (
     ID INT IDENTITY(1,1) PRIMARY KEY,
     UserID INT FOREIGN KEY REFERENCES Users(ID),
-    QuestionText NVARCHAR(MAX) NOT NULL,
-    CorrectAnswer NVARCHAR(MAX) NOT NULL,
-    WrongAnswer1 NVARCHAR(MAX) NOT NULL,
-    WrongAnswer2 NVARCHAR(MAX) NOT NULL,
-    WrongAnswer3 NVARCHAR(MAX) NOT NULL,
+    QuestionText NVARCHAR(4000) NOT NULL,
+    CorrectAnswer NVARCHAR(4000) NOT NULL,
+    WrongAnswer1 NVARCHAR(4000) NOT NULL,
+    WrongAnswer2 NVARCHAR(4000) NOT NULL,
+    WrongAnswer3 NVARCHAR(4000) NOT NULL,
     TopicID INT FOREIGN KEY REFERENCES Topics(ID),
     Status NVARCHAR(20) DEFAULT 'Pending' CHECK (Status IN ('Pending', 'Approved', 'Rejected')),
     Date DATETIME DEFAULT GETDATE()

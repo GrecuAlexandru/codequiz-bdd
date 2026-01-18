@@ -9,7 +9,7 @@ CREATE PROCEDURE RegisterUser
 AS
 BEGIN
     SET NOCOUNT ON;
-    
+
     IF EXISTS (SELECT 1 FROM Users WHERE Username = @Username OR Email = @Email)
     BEGIN
         SELECT -1 AS Result, 'Username or Email already exists' AS Message;
@@ -33,7 +33,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     SELECT ID, Username, PasswordHash, Role, Email
-    FROM Users 
+    FROM Users
     WHERE Username = @Username;
 END
 GO
@@ -47,10 +47,10 @@ CREATE PROCEDURE GetQuizzes
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT 
-        q.ID, 
-        q.Title, 
-        q.Description, 
+    SELECT
+        q.ID,
+        q.Title,
+        q.Description,
         (SELECT COUNT(*) FROM Questions WHERE QuizID = q.ID) as QuestionCount
     FROM Quizzes q;
 END
@@ -98,14 +98,14 @@ CREATE PROCEDURE RecordAttempt
 AS
 BEGIN
     SET NOCOUNT ON;
-    
+
     DECLARE @IsCorrect BIT;
     SELECT @IsCorrect = IsCorrect FROM Answers WHERE ID = @AnswerID;
-    
+
     -- Check if already answered in this attempt
     IF EXISTS (SELECT 1 FROM UserProgress WHERE AttemptID = @AttemptID AND QuestionID = @QuestionID)
     BEGIN
-        UPDATE UserProgress 
+        UPDATE UserProgress
         SET SelectedAnswerID = @AnswerID, IsCorrect = @IsCorrect, AttemptDate = GETDATE()
         WHERE AttemptID = @AttemptID AND QuestionID = @QuestionID;
     END
@@ -114,7 +114,7 @@ BEGIN
         INSERT INTO UserProgress (AttemptID, QuestionID, SelectedAnswerID, IsCorrect)
         VALUES (@AttemptID, @QuestionID, @AnswerID, @IsCorrect);
     END
-    
+
     SELECT @IsCorrect AS IsCorrect;
 END
 GO
@@ -129,14 +129,14 @@ CREATE PROCEDURE StartQuizAttempt
 AS
 BEGIN
     SET NOCOUNT ON;
-    
+
     -- Check for an existing INCOMPLETE attempt
     DECLARE @ExistingAttemptID INT;
-    SELECT TOP 1 @ExistingAttemptID = ID 
-    FROM QuizAttempts 
+    SELECT TOP 1 @ExistingAttemptID = ID
+    FROM QuizAttempts
     WHERE UserID = @UserID AND QuizID = @QuizID AND CompletedAt IS NULL
     ORDER BY StartedAt DESC;
-    
+
     IF @ExistingAttemptID IS NOT NULL
     BEGIN
         -- Resume existing attempt
@@ -147,7 +147,7 @@ BEGIN
         -- Create new attempt
         INSERT INTO QuizAttempts (UserID, QuizID)
         VALUES (@UserID, @QuizID);
-        
+
         SELECT SCOPE_IDENTITY() AS AttemptID, 1 AS IsNew;
     END
 END
@@ -169,7 +169,7 @@ BEGIN
     UPDATE QuizAttempts
     SET CompletedAt = GETDATE(), Score = @Score
     WHERE ID = @AttemptID;
-    
+
     SELECT @Score AS Score;
 END
 GO
@@ -183,10 +183,10 @@ CREATE PROCEDURE GetQuizHistory
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT 
-        qa.ID, 
-        q.Title AS QuizTitle, 
-        qa.Score, 
+    SELECT
+        qa.ID,
+        q.Title AS QuizTitle,
+        qa.Score,
         qa.CompletedAt,
         (SELECT COUNT(*) FROM Questions WHERE QuizID = q.ID) as TotalQuestions
     FROM QuizAttempts qa
@@ -205,8 +205,8 @@ CREATE PROCEDURE GetPendingQuizzes
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT 
-        qa.ID, 
+    SELECT
+        qa.ID,
         q.Title AS QuizTitle,
         q.ID AS QuizID,
         qa.StartedAt,
@@ -228,7 +228,7 @@ CREATE PROCEDURE GetQuizAttemptDetails
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT 
+    SELECT
         q.Text AS QuestionText,
         a.Text AS SelectedAnswer,
         a.IsCorrect,
@@ -295,7 +295,7 @@ CREATE PROCEDURE GetPendingContributions
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT 
+    SELECT
         c.ID,
         u.Username,
         c.QuestionText,
@@ -354,7 +354,7 @@ CREATE PROCEDURE GetTopicStats
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT 
+    SELECT
         t.Name,
         COUNT(DISTINCT qa.ID) AS QuizzesTaken,
         AVG(CAST(up.IsCorrect AS FLOAT)) * 100 AS SuccessRate
@@ -370,13 +370,14 @@ END
 GO
 
 -- 20. GetUserLeaderboard (Complexity 7): User Engagement
--- 1. JOIN Users
--- 2. JOIN QuizAttempts
--- 3. JOIN Reviews
--- 4. JOIN Contributions
--- 5. WHERE Date Check
--- 6. GROUP BY
--- 7. HAVING Score > 0
+-- Complexity Points:
+-- 1. LEFT JOIN QuizAttempts (+1)
+-- 2. LEFT JOIN Reviews (+1)
+-- 3. LEFT JOIN Contributions (+1)
+-- 4. LEFT JOIN Topics (+1)
+-- 5. WHERE Role check (+1)
+-- 6. GROUP BY (+1)
+-- 7. HAVING check (+1)
 IF OBJECT_ID('GetUserLeaderboard', 'P') IS NOT NULL DROP PROCEDURE GetUserLeaderboard;
 GO
 
@@ -394,9 +395,49 @@ BEGIN
     LEFT JOIN QuizAttempts qa ON u.ID = qa.UserID AND qa.CompletedAt IS NOT NULL
     LEFT JOIN Reviews r ON u.ID = r.UserID
     LEFT JOIN Contributions c ON u.ID = c.UserID
+    LEFT JOIN Topics t ON c.TopicID = t.ID
+    WHERE u.Role = 'User'
     GROUP BY u.Username
     HAVING (COUNT(DISTINCT qa.ID) * 10 + COUNT(DISTINCT r.ID) * 5 + COUNT(DISTINCT c.ID) * 20) > 0
     ORDER BY EngagementScore DESC;
+END
+GO
+
+-- 32. GetTopicDifficultyAnalysis (Complexity 7+): Difficulties vs Success Rate per Topic
+-- Complexity Points:
+-- 1. JOIN Questions (+1)
+-- 2. JOIN UserProgress (+1)
+-- 3. JOIN QuizAttempts (+1)
+-- 4. JOIN Users (+1)
+-- 5. WHERE Role='User' (+1)
+-- 6. GROUP BY (+1)
+-- 7. HAVING Count > 5 (+1)
+IF OBJECT_ID('GetTopicDifficultyAnalysis', 'P') IS NOT NULL DROP PROCEDURE GetTopicDifficultyAnalysis;
+GO
+
+CREATE PROCEDURE GetTopicDifficultyAnalysis
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT
+        t.Name AS TopicName,
+        q.Difficulty,
+        COUNT(DISTINCT up.ID) AS TotalAnswers,
+        AVG(CAST(up.IsCorrect AS FLOAT)) * 100 AS SuccessRate
+    FROM Topics t
+    JOIN Questions q ON t.ID = q.TopicID
+    JOIN UserProgress up ON q.ID = up.QuestionID
+    JOIN QuizAttempts qa ON up.AttemptID = qa.ID
+    JOIN Users u ON qa.UserID = u.ID
+    WHERE u.Role = 'User'
+    GROUP BY t.Name, q.Difficulty
+    HAVING COUNT(DISTINCT up.ID) > 0
+    ORDER BY t.Name,
+        CASE q.Difficulty
+            WHEN 'Easy' THEN 1
+            WHEN 'Medium' THEN 2
+            WHEN 'Hard' THEN 3
+        END;
 END
 GO
 
@@ -413,9 +454,9 @@ AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
-    
+
     BEGIN TRANSACTION;
-    
+
     BEGIN TRY
         -- Get Contribution Data
         DECLARE @QuestionText NVARCHAR(MAX);
@@ -424,8 +465,8 @@ BEGIN
         DECLARE @Wrong2 NVARCHAR(MAX);
         DECLARE @Wrong3 NVARCHAR(MAX);
         DECLARE @TopicID INT;
-        
-        SELECT 
+
+        SELECT
             @QuestionText = QuestionText,
             @CorrectAnswer = CorrectAnswer,
             @Wrong1 = WrongAnswer1,
@@ -433,24 +474,24 @@ BEGIN
             @Wrong3 = WrongAnswer3,
             @TopicID = TopicID
         FROM Contributions WHERE ID = @ContributionID;
-        
+
         -- Insert into Questions
         DECLARE @NewQuestionID INT;
         INSERT INTO Questions (QuizID, Text, Difficulty, CompanyID, TopicID)
         VALUES (@TargetQuizID, @QuestionText, @Difficulty, @CompanyID, @TopicID);
-        
+
         SET @NewQuestionID = SCOPE_IDENTITY();
-        
+
         -- Insert Answers
         INSERT INTO Answers (QuestionID, Text, IsCorrect) VALUES
         (@NewQuestionID, @CorrectAnswer, 1),
         (@NewQuestionID, @Wrong1, 0),
         (@NewQuestionID, @Wrong2, 0),
         (@NewQuestionID, @Wrong3, 0);
-        
+
         -- Update Contribution Status
         UPDATE Contributions SET Status = 'Approved' WHERE ID = @ContributionID;
-        
+
         COMMIT TRANSACTION;
         SELECT 1 AS Result;
     END TRY
@@ -483,7 +524,7 @@ CREATE PROCEDURE GetMyContributions
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT 
+    SELECT
         c.QuestionText,
         t.Name AS TopicName,
         c.Status,
@@ -596,6 +637,29 @@ BEGIN
     SET NOCOUNT ON;
     SELECT ID FROM Users WHERE Username LIKE 'user_%';
 END
+GO
+
+-- 33. GetAllReviews: Returns all reviews for Admin
+IF OBJECT_ID('GetAllReviews', 'P') IS NOT NULL DROP PROCEDURE GetAllReviews;
+GO
+
+CREATE PROCEDURE GetAllReviews
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT
+        r.ID,
+        u.Username,
+        q.Text AS QuestionText,
+        r.Rating,
+        r.Comment,
+        r.Date
+    FROM Reviews r
+    JOIN Users u ON r.UserID = u.ID
+    JOIN Questions q ON r.QuestionID = q.ID
+    ORDER BY r.Date DESC;
+END
+GO
 GO
 
 -- 29. GetQuestionIDsByQuiz: Returns IDs of questions for a specific quiz

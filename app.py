@@ -1,99 +1,139 @@
 import os
 from dotenv import load_dotenv
-from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
+from flask import (
+    Flask,
+    jsonify,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    session,
+    flash,
+)
 from database import MSSQLConnection
 from werkzeug.security import generate_password_hash, check_password_hash
 import functools
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import io
+import base64
 
 app = Flask(__name__)
-app.secret_key = 'secret_key'
+app.secret_key = "secret_key"
 
 load_dotenv()
 
-DB_HOST = 'localhost'
+DB_HOST = "localhost"
 DB_PORT = 1433
-DB_NAME = 'master'
-DB_USER = os.getenv('DB_USER', 'SA')
-DB_PASSWORD = os.getenv('DB_PASSWORD', 'password')
+DB_NAME = "master"
+DB_USER = os.getenv("DB_USER", "SA")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
+
 
 def get_db():
     conn = MSSQLConnection(DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD)
     conn.openConnection()
     return conn
 
+
 # Decorator for login required
 def login_required(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
-        if 'user_id' not in session:
-            flash('Please log in to access this page.', 'error')
-            return redirect(url_for('login'))
-        
+        if "user_id" not in session:
+            flash("Please log in to access this page.", "error")
+            return redirect(url_for("login"))
+
         # Verify user still exists in DB and matches session data
         try:
             db = get_db()
-            cursor = db.execute_query("EXEC GetUserByID ?", (session['user_id'],))
+            cursor = db.execute_query("EXEC GetUserByID ?", (session["user_id"],))
             row = cursor.fetchone()
-            
+
             if not row:
                 # User ID not found
                 session.clear()
                 db.closeConnection()
-                flash('Session expired. Please log in again.', 'error')
-                return redirect(url_for('login'))
-                
+                flash("Session expired. Please log in again.", "error")
+                return redirect(url_for("login"))
+
             db_username = row[0]
             db_role = row[1]
-            
+
             # Check if session data matches current DB data (handles DB resets where ID is reused)
-            if db_username != session.get('username') or db_role != session.get('role'):
+            if db_username != session.get("username") or db_role != session.get("role"):
                 session.clear()
                 db.closeConnection()
-                flash('Session invalid (data mismatch). Please log in again.', 'error')
-                return redirect(url_for('login'))
-                
+                flash("Session invalid (data mismatch). Please log in again.", "error")
+                return redirect(url_for("login"))
+
             db.closeConnection()
         except Exception:
             session.clear()
-            flash('Session validation failed. Please log in again.', 'error')
-            return redirect(url_for('login'))
-            
+            flash("Session validation failed. Please log in again.", "error")
+            return redirect(url_for("login"))
+
         return view(**kwargs)
+
     return wrapped_view
 
 # Decorator for admin required
 def admin_required(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
-        if 'role' not in session or session['role'] != 'Admin':
-            flash('Access denied. Admins only.', 'error')
-            return redirect(url_for('index'))
+        if "role" not in session or session["role"] != "Admin":
+            flash("Access denied. Admins only.", "error")
+            return redirect(url_for("index"))
         return view(**kwargs)
+
     return wrapped_view
 
-@app.route('/')
-def index():
-    return render_template('base.html')
+# Function to create plots inside admin dashboard
+def create_plot(labels, values, title, ylabel, color="blue"):
+    if not labels or not values:
+        return None
 
-@app.route('/register', methods=('GET', 'POST'))
+    plt.figure(figsize=(10, 6))
+    plt.bar(labels, values, color=color)
+    plt.title(title)
+    plt.ylabel(ylabel)
+    plt.grid(axis="y", linestyle="--", alpha=0.7)
+    plt.xticks(rotation=45, ha="right")
+    plt.tight_layout()
+
+    img = io.BytesIO()
+    plt.savefig(img, format="png")
+    img.seek(0)
+    plot_url = base64.b64encode(img.getvalue()).decode()
+    plt.close()
+    return f"data:image/png;base64,{plot_url}"
+
+
+@app.route("/")
+def index():
+    return redirect(url_for("login"))
+
+
+@app.route("/register", methods=("GET", "POST"))
 def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        email = request.form['email']
-        confirm_password = request.form['confirm_password']
-        
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        email = request.form["email"]
+        confirm_password = request.form["confirm_password"]
+
         if password != confirm_password:
-            flash('Passwords do not match.', 'error')
-            return redirect(url_for('register'))
-            
+            flash("Passwords do not match.", "error")
+            return redirect(url_for("register"))
+
         hashed_password = generate_password_hash(password)
-        
+
         try:
             db = get_db()
             cursor = db.execute_query(
-                "EXEC RegisterUser ?, ?, ?", 
-                (username, hashed_password, email)
+                "EXEC RegisterUser ?, ?, ?", (username, hashed_password, email)
             )
 
             # Fetchone can return None if query failed or no result
@@ -101,59 +141,65 @@ def register():
             if row:
                 result = row[0]
                 message = row[1]
-                
+
                 db.closeConnection()
-                
+
                 if result == 1:
-                    flash('Registration successful! Please login.', 'success')
-                    return redirect(url_for('login'))
+                    flash("Registration successful! Please login.", "success")
+                    return redirect(url_for("login"))
                 else:
-                    flash(message, 'error')
+                    flash(message, "error")
             else:
                 db.closeConnection()
                 flash("Registration failed: No response from database.", "error")
-                
-        except Exception as e:
-            flash(f"Registration failed: {str(e)}", 'error')
-            
-    return render_template('register.html')
 
-@app.route('/login', methods=('GET', 'POST'))
+        except Exception as e:
+            flash(f"Registration failed: {str(e)}", "error")
+
+    return render_template("register.html")
+
+
+@app.route("/login", methods=("GET", "POST"))
 def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
+    if "user_id" in session:
+        return redirect(url_for("quizzes"))
+
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
         try:
             db = get_db()
             cursor = db.execute_query("EXEC LoginUser ?", (username,))
             user = cursor.fetchone()
             db.closeConnection()
-            
+
             if user:
                 # user: ID, Username, PasswordHash, Role, Email
                 stored_hash = user[2]
                 if check_password_hash(stored_hash, password):
                     session.clear()
-                    session['user_id'] = user[0]
-                    session['username'] = user[1]
-                    session['role'] = user[3]
-                    return redirect(url_for('quizzes'))
-            
-            flash('Invalid username or password.', 'error')
-            
-        except Exception as e:
-            flash(f"Login error: {str(e)}", 'error')
-            
-    return render_template('login.html')
+                    session["user_id"] = user[0]
+                    session["username"] = user[1]
+                    session["role"] = user[3]
+                    return redirect(url_for("quizzes"))
 
-@app.route('/logout')
+            flash("Invalid username or password.", "error")
+
+        except Exception as e:
+            flash(f"Login error: {str(e)}", "error")
+
+    return render_template("login.html")
+
+
+@app.route("/logout")
 def logout():
     session.clear()
-    flash('You have been logged out.', 'success')
-    return redirect(url_for('index'))
+    flash("You have been logged out.", "success")
+    return redirect(url_for("index"))
 
-@app.route('/quizzes')
+
+@app.route("/quizzes")
 @login_required
 def quizzes():
     quizzes_list = []
@@ -162,20 +208,24 @@ def quizzes():
         cursor = db.execute_query("EXEC GetQuizzes")
         rows = cursor.fetchall()
         for row in rows:
-            quizzes_list.append({
-                'id': row[0],
-                'title': row[1],
-                'description': row[2],
-                'question_count': row[3]
-            })
+            quizzes_list.append(
+                {
+                    "id": row[0],
+                    "title": row[1],
+                    "description": row[2],
+                    "question_count": row[3],
+                }
+            )
         db.closeConnection()
     except Exception as e:
         flash(f"Error loading quizzes: {e}", "error")
-        
-    return render_template('quizzes.html', username=session.get('username'), quizzes=quizzes_list)
+
+    return render_template(
+        "quizzes.html", username=session.get("username"), quizzes=quizzes_list
+    )
 
 
-@app.route('/quiz/<int:quiz_id>')
+@app.route("/quiz/<int:quiz_id>")
 @login_required
 def quiz_intro(quiz_id):
     quiz = None
@@ -185,72 +235,78 @@ def quiz_intro(quiz_id):
         cursor = db.execute_query("EXEC GetQuizDetails ?", (quiz_id,))
         row = cursor.fetchone()
         if row:
-            quiz = {'id': row[0], 'title': row[1], 'description': row[2]}
-            
+            quiz = {"id": row[0], "title": row[1], "description": row[2]}
+
         # Check for pending attempt
-        cursor = db.execute_query("EXEC CheckPendingAttempt ?, ?", (session['user_id'], quiz_id))
+        cursor = db.execute_query(
+            "EXEC CheckPendingAttempt ?, ?", (session["user_id"], quiz_id)
+        )
         if cursor.fetchone():
             has_pending = True
-            
+
         db.closeConnection()
     except Exception as e:
         flash(f"Error loading quiz: {e}", "error")
-        return redirect(url_for('quizzes'))
+        return redirect(url_for("quizzes"))
 
     if not quiz:
         flash("Quiz not found", "error")
-        return redirect(url_for('quizzes'))
+        return redirect(url_for("quizzes"))
 
-    return render_template('quiz_intro.html', quiz=quiz, has_pending=has_pending)
+    return render_template("quiz_intro.html", quiz=quiz, has_pending=has_pending)
 
-@app.route('/quiz/<int:quiz_id>/start', methods=['POST'])
+
+@app.route("/quiz/<int:quiz_id>/start", methods=["POST"])
 @login_required
 def start_quiz(quiz_id):
     try:
         db = get_db()
-        
+
         # Start or Resume Attempt
-        cursor = db.execute_query("EXEC StartQuizAttempt ?, ?", (session['user_id'], quiz_id))
+        cursor = db.execute_query(
+            "EXEC StartQuizAttempt ?, ?", (session["user_id"], quiz_id)
+        )
         row = cursor.fetchone()
         attempt_id = row[0]
-        
+
         # Get Questions for this Quiz
         cursor = db.execute_query("EXEC GetQuestionsByQuiz ?", (quiz_id,))
         rows = cursor.fetchall()
         question_ids = [row[0] for row in rows]
-        
+
         if not question_ids:
             db.closeConnection()
             flash("No questions available for this quiz.", "error")
-            return redirect(url_for('quizzes'))
+            return redirect(url_for("quizzes"))
 
         # Determine current progress
         cursor = db.execute_query("EXEC GetAttemptProgressCount ?", (attempt_id,))
         progress_row = cursor.fetchone()
         current_index = progress_row[0]
-        
+
         db.closeConnection()
 
-        session['quiz_attempt_id'] = attempt_id
-        session['quiz_question_ids'] = question_ids
-        session['quiz_current_index'] = current_index
-        
-        return redirect(url_for('quiz_question'))
+        session["quiz_attempt_id"] = attempt_id
+        session["quiz_question_ids"] = question_ids
+        session["quiz_current_index"] = current_index
+
+        return redirect(url_for("quiz_question"))
     except Exception as e:
         flash(f"Error starting quiz: {e}", "error")
-        return redirect(url_for('quizzes'))
+        return redirect(url_for("quizzes"))
 
-@app.route('/quiz/question')
+
+@app.route("/quiz/question")
 @login_required
 def quiz_question():
-    q_ids = session.get('quiz_question_ids')
-    idx = session.get('quiz_current_index')
-    
+    q_ids = session.get("quiz_question_ids")
+    idx = session.get("quiz_current_index")
+
     if not q_ids or idx is None or idx >= len(q_ids):
-        return redirect(url_for('quiz_result'))
-        
+        return redirect(url_for("quiz_result"))
+
     current_q_id = q_ids[idx]
-    
+
     question = None
     answers = []
     try:
@@ -259,64 +315,69 @@ def quiz_question():
         # Get Question Text
         cursor = db.execute_query("EXEC GetQuestionDetails ?", (current_q_id,))
         q_row = cursor.fetchone()
-        question = {'id': current_q_id, 'text': q_row[0], 'difficulty': q_row[1]}
-        
+        question = {"id": current_q_id, "text": q_row[0], "difficulty": q_row[1]}
+
         # Get Answers
         cursor = db.execute_query("EXEC GetAnswersByQuestion ?", (current_q_id,))
         a_rows = cursor.fetchall()
         for row in a_rows:
-            answers.append({'id': row[0], 'text': row[1]})
-            
+            answers.append({"id": row[0], "text": row[1]})
+
         db.closeConnection()
         db.closeConnection()
     except Exception as e:
         flash(f"Error loading question: {e}", "error")
-        return redirect(url_for('quizzes'))
-        
-    return render_template('quiz_question.html', 
-                           question=question, 
-                           answers=answers, 
-                           index=idx + 1, 
-                           total=len(q_ids))
+        return redirect(url_for("quizzes"))
 
-@app.route('/quiz/answer', methods=['POST'])
+    return render_template(
+        "quiz_question.html",
+        question=question,
+        answers=answers,
+        index=idx + 1,
+        total=len(q_ids),
+    )
+
+
+@app.route("/quiz/answer", methods=["POST"])
 @login_required
 def submit_answer():
-    question_id = request.form.get('question_id')
-    answer_id = request.form.get('answer_id')
-    
+    question_id = request.form.get("question_id")
+    answer_id = request.form.get("answer_id")
+
     if not question_id or not answer_id:
         flash("Please select an answer.", "error")
-        return redirect(url_for('quiz_question'))
-        
+        return redirect(url_for("quiz_question"))
+
     try:
-        attempt_id = session.get('quiz_attempt_id')
+        attempt_id = session.get("quiz_attempt_id")
         if not attempt_id:
             flash("Session expired.", "error")
-            return redirect(url_for('quizzes'))
+            return redirect(url_for("quizzes"))
 
         db = get_db()
-        cursor = db.execute_query("EXEC RecordAttempt ?, ?, ?", 
-                                  (attempt_id, question_id, answer_id))
+        cursor = db.execute_query(
+            "EXEC RecordAttempt ?, ?, ?", (attempt_id, question_id, answer_id)
+        )
         row = cursor.fetchone()
         is_correct = row[0]
         db.closeConnection()
-        
-        session['quiz_current_index'] = session.get('quiz_current_index', 0) + 1
-        return redirect(url_for('quiz_question'))
-        
+
+        session["quiz_current_index"] = session.get("quiz_current_index", 0) + 1
+        return redirect(url_for("quiz_question"))
+
     except Exception as e:
         flash(f"Error submitting answer: {e}", "error")
-        return redirect(url_for('quiz_question'))
+        return redirect(url_for("quiz_question"))
 
-@app.route('/quiz/result')
+
+@app.route("/quiz/result")
 @login_required
 def quiz_result():
     # Finalize the attempt
-    attempt_id = session.get('quiz_attempt_id')
+    attempt_id = session.get("quiz_attempt_id")
     score = 0
-    total = len(session.get('quiz_question_ids', []))
-    
+    total = len(session.get("quiz_question_ids", []))
+
     if attempt_id:
         try:
             db = get_db()
@@ -327,52 +388,63 @@ def quiz_result():
         except Exception as e:
             flash(f"Error finalizing quiz: {e}", "error")
 
-    # Clear quiz session 
-    session.pop('quiz_question_ids', None)
-    session.pop('quiz_current_index', None)
-    session.pop('quiz_attempt_id', None)
-    
-    return render_template('quiz_result.html', score=score, total=total)
+    # Clear quiz session
+    session.pop("quiz_question_ids", None)
+    session.pop("quiz_current_index", None)
+    session.pop("quiz_attempt_id", None)
 
-@app.route('/profile')
+    return render_template("quiz_result.html", score=score, total=total)
+
+
+@app.route("/profile")
 @login_required
 def profile():
     history = []
     pending = []
     try:
         db = get_db()
-        
+
         # History
-        cursor = db.execute_query("EXEC GetQuizHistory ?", (session['user_id'],))
+        cursor = db.execute_query("EXEC GetQuizHistory ?", (session["user_id"],))
         rows = cursor.fetchall()
         for row in rows:
-            history.append({
-                'id': row[0],
-                'topic': row[1],
-                'score': row[2],
-                'date': row[3].strftime('%Y-%m-%d %H:%M'),
-                'total': row[4]
-            })
-            
+            history.append(
+                {
+                    "id": row[0],
+                    "topic": row[1],
+                    "score": row[2],
+                    "date": row[3].strftime("%Y-%m-%d %H:%M"),
+                    "total": row[4],
+                }
+            )
+
         # Pending
-        cursor = db.execute_query("EXEC GetPendingQuizzes ?", (session['user_id'],))
+        cursor = db.execute_query("EXEC GetPendingQuizzes ?", (session["user_id"],))
         rows = cursor.fetchall()
         for row in rows:
-            pending.append({
-                'id': row[2],
-                'topic': row[1],
-                'date': row[3].strftime('%Y-%m-%d %H:%M'),
-                'progress': row[4],
-                'total': row[5]
-            })
-            
+            pending.append(
+                {
+                    "id": row[2],
+                    "topic": row[1],
+                    "date": row[3].strftime("%Y-%m-%d %H:%M"),
+                    "progress": row[4],
+                    "total": row[5],
+                }
+            )
+
         db.closeConnection()
     except Exception as e:
         flash(f"Error loading profile: {e}", "error")
-        
-    return render_template('profile.html', history=history, pending=pending, username=session.get('username'))
 
-@app.route('/history/<int:attempt_id>')
+    return render_template(
+        "profile.html",
+        history=history,
+        pending=pending,
+        username=session.get("username"),
+    )
+
+
+@app.route("/history/<int:attempt_id>")
 @login_required
 def quiz_history(attempt_id):
     details = []
@@ -381,68 +453,80 @@ def quiz_history(attempt_id):
         cursor = db.execute_query("EXEC GetQuizAttemptDetails ?", (attempt_id,))
         rows = cursor.fetchall()
         for row in rows:
-            details.append({
-                'question': row[0],
-                'answer': row[1],
-                'is_correct': row[2],
-                'difficulty': row[3],
-                'question_id': row[4]
-            })
+            details.append(
+                {
+                    "question": row[0],
+                    "answer": row[1],
+                    "is_correct": row[2],
+                    "difficulty": row[3],
+                    "question_id": row[4],
+                }
+            )
         db.closeConnection()
     except Exception as e:
         flash(f"Error loading history details: {e}", "error")
-        return redirect(url_for('profile'))
-        
-    return render_template('quiz_history.html', details=details, attempt_id=attempt_id)
+        return redirect(url_for("profile"))
+
+    return render_template("quiz_history.html", details=details, attempt_id=attempt_id)
 
 
-@app.route('/review', methods=['POST'])
+@app.route("/review", methods=["POST"])
 @login_required
 def submit_review():
-    question_id = request.form.get('question_id')
-    rating = request.form.get('rating')
-    comment = request.form.get('comment')
-    attempt_id = request.form.get('attempt_id') # To redirect back properly
-    
+    question_id = request.form.get("question_id")
+    rating = request.form.get("rating")
+    comment = request.form.get("comment")
+    attempt_id = request.form.get("attempt_id")  # To redirect back properly
+
     if not all([question_id, rating, attempt_id]):
-        flash('Rating is required', 'error')
-        return redirect(url_for('quiz_history', attempt_id=attempt_id))
-        
+        flash("Rating is required", "error")
+        return redirect(url_for("quiz_history", attempt_id=attempt_id))
+
     try:
         db = get_db()
-        db.execute_query("EXEC AddReview ?, ?, ?, ?", 
-                           (session['user_id'], question_id, rating, comment))
+        db.execute_query(
+            "EXEC AddReview ?, ?, ?, ?",
+            (session["user_id"], question_id, rating, comment),
+        )
         db.closeConnection()
-        flash('Review submitted successfully!', 'success')
+        flash("Review submitted successfully!", "success")
     except Exception as e:
-        flash(f"Error submitting review: {e}", 'error')
-        
-    return redirect(url_for('quiz_history', attempt_id=attempt_id))
+        flash(f"Error submitting review: {e}", "error")
+
+    return redirect(url_for("quiz_history", attempt_id=attempt_id))
 
 
-@app.route('/contribute', methods=('GET', 'POST'))
+@app.route("/contribute", methods=("GET", "POST"))
 @login_required
 def contribute():
-    if request.method == 'POST':
-        question_text = request.form['question_text']
-        correct_answer = request.form['correct_answer']
-        wrong1 = request.form['wrong1']
-        wrong2 = request.form['wrong2']
-        wrong3 = request.form['wrong3']
-        topic_id = request.form['topic_id']
-        
+    if request.method == "POST":
+        question_text = request.form["question_text"]
+        correct_answer = request.form["correct_answer"]
+        wrong1 = request.form["wrong1"]
+        wrong2 = request.form["wrong2"]
+        wrong3 = request.form["wrong3"]
+        topic_id = request.form["topic_id"]
+
         try:
             db = get_db()
             db.execute_query(
                 "EXEC AddContribution ?, ?, ?, ?, ?, ?, ?",
-                (session['user_id'], question_text, correct_answer, wrong1, wrong2, wrong3, topic_id)
+                (
+                    session["user_id"],
+                    question_text,
+                    correct_answer,
+                    wrong1,
+                    wrong2,
+                    wrong3,
+                    topic_id,
+                ),
             )
             db.closeConnection()
-            flash('Contribution submitted for review!', 'success')
-            return redirect(url_for('contribute'))
+            flash("Contribution submitted for review!", "success")
+            return redirect(url_for("contribute"))
         except Exception as e:
-            flash(f"Error submitting contribution: {e}", 'error')
-    
+            flash(f"Error submitting contribution: {e}", "error")
+
     topics = []
     my_contributions = []
     try:
@@ -451,143 +535,249 @@ def contribute():
         cursor = db.execute_query("EXEC GetAllTopics")
         rows = cursor.fetchall()
         for row in rows:
-            topics.append({'id': row[0], 'name': row[1]})
-            
+            topics.append({"id": row[0], "name": row[1]})
+
         # User History
-        cursor = db.execute_query("EXEC GetMyContributions ?", (session['user_id'],))
+        cursor = db.execute_query("EXEC GetMyContributions ?", (session["user_id"],))
         rows = cursor.fetchall()
         for row in rows:
-            my_contributions.append({
-                'question_text': row[0],
-                'topic': row[1],
-                'status': row[2],
-                'date': row[3].strftime('%Y-%m-%d %H:%M')
-            })
-            
+            my_contributions.append(
+                {
+                    "question_text": row[0],
+                    "topic": row[1],
+                    "status": row[2],
+                    "date": row[3].strftime("%Y-%m-%d %H:%M"),
+                }
+            )
+
         db.closeConnection()
     except Exception as e:
-        flash(f"Error loading data: {e}", 'error')
-        
-    return render_template('contribute.html', topics=topics, my_contributions=my_contributions)
+        flash(f"Error loading data: {e}", "error")
 
-@app.route('/admin')
+    return render_template(
+        "contribute.html", topics=topics, my_contributions=my_contributions
+    )
+
+
+@app.route("/admin")
 @admin_required
 def admin_dashboard():
-    contributions = []
-    quizzes = []
-    company_stats = {'labels': [], 'data': []}
-    topic_stats = {'labels': [], 'data': []}
     leaderboard = []
-    
+    company_chart_url = None
+    topic_chart_url = None
+
     try:
         db = get_db()
 
-            
-        # Report 1: Company Stats (Complexity 4)
+        # Report 1: Company Stats
         cursor = db.execute_query("EXEC GetCompanyStats")
         c_rows = cursor.fetchall()
-        for row in c_rows:
-            company_stats['labels'].append(row[0])
-            company_stats['data'].append(row[2]) # Fail Count
-            
-        # Report 2: Topic Stats (Complexity 6)
+        c_labels = [row[0] for row in c_rows]
+        c_data = [row[2] for row in c_rows]  # Fail Count
+
+        company_chart_url = create_plot(
+            c_labels,
+            c_data,
+            "Top Companies by Fail Rate",
+            "Fail Count",
+            color="#ef4444",
+        )
+
+        # Report 2: Topic Stats
         cursor = db.execute_query("EXEC GetTopicStats")
         t_rows = cursor.fetchall()
-        for row in t_rows:
-            topic_stats['labels'].append(row[0])
-            topic_stats['data'].append(row[2]) # Success Rate
-            
-        # Report 3: Leaderboard (Complexity 7)
+        t_labels = [row[0] for row in t_rows]
+        t_data = [row[2] for row in t_rows]  # Success Rate
+
+        topic_chart_url = create_plot(
+            t_labels, t_data, "Topic Success Rates", "Success Rate (%)", color="#3b82f6"
+        )
+
+        # Report 3: Leaderboard
         cursor = db.execute_query("EXEC GetUserLeaderboard")
         l_rows = cursor.fetchall()
         for row in l_rows:
-            leaderboard.append({
-                'username': row[0],
-                'quizzes': row[1],
-                'reviews': row[2],
-                'contributions': row[3],
-                'score': row[4]
-            })
-            
+            leaderboard.append(
+                {
+                    "username": row[0],
+                    "quizzes": row[1],
+                    "reviews": row[2],
+                    "contributions": row[3],
+                    "score": row[4],
+                }
+            )
+
+        # Report 4: Topic Difficulty Analysis (New Complexity 7+)
+        difficulty_chart_url = None
+        cursor = db.execute_query("EXEC GetTopicDifficultyAnalysis")
+        d_rows = cursor.fetchall()
+
+        if d_rows:
+            # Data Structuring for Matplotlib
+            # Group by Topic we want: { 'OS': {'Easy': 80, 'Hard': 20}, ... }
+            topics = sorted(list(set([row[0] for row in d_rows])))
+            difficulties = ["Easy", "Medium", "Hard"]
+
+            data_map = {t: {d: 0 for d in difficulties} for t in topics}
+            for row in d_rows:
+                topic = row[0]
+                diff = row[1]
+                rate = row[3]
+                if diff in difficulties:
+                    data_map[topic][diff] = rate
+
+            # Prepare arrays for plotting
+            x = range(len(topics))
+            width = 0.25
+
+            easy_vals = [data_map[t]["Easy"] for t in topics]
+            med_vals = [data_map[t]["Medium"] for t in topics]
+            hard_vals = [data_map[t]["Hard"] for t in topics]
+
+            plt.figure(figsize=(10, 6))
+            plt.bar(
+                [i - width for i in x], easy_vals, width, label="Easy", color="#4ade80"
+            )
+            plt.bar(x, med_vals, width, label="Medium", color="#fbbf24")
+            plt.bar(
+                [i + width for i in x], hard_vals, width, label="Hard", color="#f87171"
+            )
+
+            plt.ylabel("Success Rate (%)")
+            plt.title("Success Rate by Topic & Difficulty")
+            plt.xticks(x, topics, rotation=45, ha="right")
+            plt.legend()
+            plt.grid(axis="y", linestyle="--", alpha=0.3)
+            plt.tight_layout()
+
+            img = io.BytesIO()
+            plt.savefig(img, format="png")
+            img.seek(0)
+            plot_url = base64.b64encode(img.getvalue()).decode()
+            plt.close()
+            difficulty_chart_url = f"data:image/png;base64,{plot_url}"
+
         db.closeConnection()
     except Exception as e:
-        flash(f"Error loading admin dashboard: {e}", 'error')
-        
-    return render_template('admin_dashboard.html', 
-                         company_stats=company_stats,
-                         topic_stats=topic_stats,
-                         leaderboard=leaderboard)
+        flash(f"Error loading admin dashboard: {e}", "error")
+        import traceback
 
-@app.route('/admin/contributions')
+        traceback.print_exc()
+
+    return render_template(
+        "admin_dashboard.html",
+        company_chart_url=company_chart_url,
+        topic_chart_url=topic_chart_url,
+        difficulty_chart_url=difficulty_chart_url,
+        leaderboard=leaderboard,
+    )
+
+
+@app.route("/admin/reviews")
+@admin_required
+def admin_reviews():
+    try:
+        db = get_db()
+        cursor = db.execute_query("EXEC GetAllReviews")
+        rows = cursor.fetchall()
+
+        reviews = []
+        for row in rows:
+            reviews.append(
+                {
+                    "id": row[0],
+                    "username": row[1],
+                    "question": row[2],
+                    "rating": row[3],
+                    "comment": row[4],
+                    "date": row[5].strftime("%Y-%m-%d %H:%M"),
+                }
+            )
+
+        db.closeConnection()
+        return render_template("admin_reviews.html", reviews=reviews)
+    except Exception as e:
+        flash(f"Error loading reviews: {e}", "error")
+        return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/admin/contributions")
 @admin_required
 def admin_contributions():
     contributions = []
     quizzes = []
     try:
         db = get_db()
-        
+
         # Get pending contributions
         cursor = db.execute_query("EXEC GetPendingContributions")
         rows = cursor.fetchall()
         for row in rows:
-            contributions.append({
-                'id': row[0],
-                'username': row[1],
-                'question_text': row[2],
-                'correct_answer': row[3],
-                'wrong1': row[4],
-                'wrong2': row[5],
-                'wrong3': row[6],
-                'topic': row[7],
-                'date': row[8].strftime('%Y-%m-%d %H:%M')
-            })
-            
+            contributions.append(
+                {
+                    "id": row[0],
+                    "username": row[1],
+                    "question_text": row[2],
+                    "correct_answer": row[3],
+                    "wrong1": row[4],
+                    "wrong2": row[5],
+                    "wrong3": row[6],
+                    "topic": row[7],
+                    "date": row[8].strftime("%Y-%m-%d %H:%M"),
+                }
+            )
+
         # Get quizzes for dropdown
         cursor = db.execute_query("EXEC GetQuizListSimple")
         q_rows = cursor.fetchall()
         for row in q_rows:
-            quizzes.append({'id': row[0], 'title': row[1]})
-            
+            quizzes.append({"id": row[0], "title": row[1]})
+
         db.closeConnection()
     except Exception as e:
-        flash(f"Error loading contributions: {e}", 'error')
-        
-    return render_template('admin_contributions.html', contributions=contributions, quizzes=quizzes)
+        flash(f"Error loading contributions: {e}", "error")
 
-@app.route('/admin/approve', methods=['POST'])
+    return render_template(
+        "admin_contributions.html", contributions=contributions, quizzes=quizzes
+    )
+
+
+@app.route("/admin/approve", methods=["POST"])
 @admin_required
 def approve_contribution():
-    contribution_id = request.form['contribution_id']
-    target_quiz_id = request.form['target_quiz_id']
-    difficulty = request.form['difficulty']
-    
+    contribution_id = request.form["contribution_id"]
+    target_quiz_id = request.form["target_quiz_id"]
+    difficulty = request.form["difficulty"]
+
     try:
         db = get_db()
         db.execute_query(
             "EXEC ApproveContribution ?, ?, ?",
-            (contribution_id, target_quiz_id, difficulty)
+            (contribution_id, target_quiz_id, difficulty),
         )
         db.closeConnection()
-        flash('Contribution approved!', 'success')
+        flash("Contribution approved!", "success")
     except Exception as e:
-        flash(f"Error approving contribution: {e}", 'error')
-        
-    return redirect(url_for('admin_contributions'))
+        flash(f"Error approving contribution: {e}", "error")
 
-@app.route('/admin/reject', methods=['POST'])
+    return redirect(url_for("admin_contributions"))
+
+
+@app.route("/admin/reject", methods=["POST"])
 @admin_required
 def reject_contribution():
-    contribution_id = request.form['contribution_id']
-    
+    contribution_id = request.form["contribution_id"]
+
     try:
         db = get_db()
         db.execute_query("EXEC RejectContribution ?", (contribution_id,))
         db.closeConnection()
-        flash('Contribution rejected.', 'success')
+        flash("Contribution rejected.", "success")
     except Exception as e:
-        flash(f"Error rejecting contribution: {e}", 'error')
-        
-    return redirect(url_for('admin_contributions'))
+        flash(f"Error rejecting contribution: {e}", "error")
 
-if __name__ == '__main__':
+    return redirect(url_for("admin_contributions"))
+
+
+if __name__ == "__main__":
     app.run(debug=True)

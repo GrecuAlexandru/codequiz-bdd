@@ -1,5 +1,6 @@
 import pyodbc
 
+
 class MSSQLConnection:
     def __init__(self, host, port, database, username, password):
         self.host = host
@@ -12,7 +13,7 @@ class MSSQLConnection:
 
     def openConnection(self):
         try:
-            driver_name = 'SQL Server'
+            driver_name = "SQL Server"
 
             conn_str = (
                 f"DRIVER={{{driver_name}}};"
@@ -22,7 +23,7 @@ class MSSQLConnection:
                 f"PWD={self.password};"
                 "TrustServerCertificate=yes;"
             )
-            
+
             self.db = pyodbc.connect(conn_str, autocommit=True)
             self.cursor = self.db.cursor()
             print("Connection open")

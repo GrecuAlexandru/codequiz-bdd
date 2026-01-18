@@ -1,0 +1,294 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{helvet}
+\usepackage{titlesec}
+\usepackage{indentfirst}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{float}
+
+% Font and Formatting settings
+\renewcommand{\familydefault}{\sfdefault}
+\setlength{\parindent}{1.27cm}
+\setlength{\parskip}{0pt}
+\linespread{1.0}
+
+% Code listing style
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!50!black},
+    stringstyle=\color{red!50!black}
+}
+
+% Title formatting
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{1em}{}
+
+\begin{document}
+
+% Custom Header / Title Block
+\begin{center}
+    {\Large \textbf{CodeQuiz}} \\[0.4cm]
+    Alexandru Grecu 342C3\\[0.1cm]
+\end{center}
+\vspace{0.3cm}
+
+% Content starts immediately
+\section{Descrierea temei}
+
+Aplicatia \textbf{CodeQuiz} este o platforma web interactiva destinata testarii cunostintelor de programare si concepte tehnice IT. Scopul principal este de a oferi utilizatorilor un mediu structurat pentru a raspunde la chestionare (quiz-uri) urmarind imbunatatirea cunostintelor, a-si urmari progresul si a contribui cu continut nou.
+
+Utilizatorii pot parcurge teste pe diverse topicuri tehnice precum Sisteme de Operare, Arhitectura Software, Baze de Date, Algoritmi si Dezvoltare Web. Platforma ofera feedback imediat dupa finalizarea fiecarui quiz, afisand scorul obtinut si permitand review-ul raspunsurilor date.
+
+Functionalitatile principale includ:
+\begin{itemize}
+    \item Autentificare si inregistrare utilizatori
+    \item Parcurgerea quiz-urilor cu intrebari cu raspuns multiplu
+    \item Vizualizarea istoricului si progresului personal
+    \item Contribuirea cu intrebari noi (supuse aprobarii administratorului)
+    \item Oferirea de review-uri pentru intrebari
+    \item Panou de administrare cu rapoarte grafice si statistici
+\end{itemize}
+
+\section{Descrierea bazei de date}
+
+\subsection{Diagrama bazei de date}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\begin{minipage}{0.9\textwidth}
+        \centering
+        \vspace{2cm}
+        \includegraphics[width=0.8\textwidth]{dbdiagram.png}
+        \vspace{2cm}
+    \end{minipage}}
+    \caption{Diagrama Bazei de Date}
+\end{figure}
+
+\subsection{Structura tabelelor}
+
+Baza de date este compusa din \textbf{10 tabele} principale:
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{|l|l|p{6cm}|}
+\hline
+\textbf{Tabel} & \textbf{Descriere} & \textbf{Coloane principale} \\
+\hline
+Users & Utilizatorii platformei & ID, Username, PasswordHash, Email, Role, CreatedAt \\
+\hline
+Companies & Companiile asociate intrebarilor & ID, Name, Description \\
+\hline
+Topics & Subiectele testelor & ID, Name, Description \\
+\hline
+Quizzes & Quiz-urile disponibile & ID, Title, Description, CreatedAt \\
+\hline
+Questions & Intrebarile din quiz-uri & ID, QuizID, Text, Difficulty, CompanyID, TopicID \\
+\hline
+Answers & Variantele de raspuns & ID, QuestionID, Text, IsCorrect \\
+\hline
+QuizAttempts & Sesiunile de testare & ID, UserID, QuizID, Score, StartedAt, CompletedAt \\
+\hline
+UserProgress & Raspunsurile date & ID, AttemptID, QuestionID, SelectedAnswerID, IsCorrect \\
+\hline
+Reviews & Feedback utilizatori & ID, UserID, QuestionID, Rating, Comment, Date \\
+\hline
+Contributions & Intrebari propuse & ID, UserID, QuestionText, CorrectAnswer, Status \\
+\hline
+\end{tabular}
+\caption{Structura tabelelor din baza de date}
+\end{table}
+
+\subsection{Descrierea constrangerilor de integritate}
+
+\textbf{Chei Primare (PK):} Fiecare tabel are coloana ID de tip INT IDENTITY(1,1) PRIMARY KEY.
+
+\textbf{Chei Externe (FK):}
+\begin{itemize}
+    \item Questions.QuizID $\rightarrow$ Quizzes.ID
+    \item Questions.CompanyID $\rightarrow$ Companies.ID
+    \item Questions.TopicID $\rightarrow$ Topics.ID
+    \item Answers.QuestionID $\rightarrow$ Questions.ID (ON DELETE CASCADE)
+    \item QuizAttempts.UserID $\rightarrow$ Users.ID
+    \item QuizAttempts.QuizID $\rightarrow$ Quizzes.ID
+    \item UserProgress.AttemptID $\rightarrow$ QuizAttempts.ID (ON DELETE CASCADE)
+    \item Reviews.UserID $\rightarrow$ Users.ID
+    \item Contributions.UserID $\rightarrow$ Users.ID
+\end{itemize}
+
+\textbf{Constrangeri CHECK:}
+\begin{itemize}
+    \item Users.Role IN ('User', 'Admin')
+    \item Questions.Difficulty IN ('Easy', 'Medium', 'Hard')
+    \item Reviews.Rating $>=$ 1 AND Rating $<=$ 5
+    \item Contributions.Status IN ('Pending', 'Approved', 'Rejected')
+\end{itemize}
+
+\textbf{Unicitate:} Users.Username si Users.Email sunt UNIQUE.
+
+\subsection{Descrierea procedurilor si functiilor}
+
+Aplicatia utilizeaza exclusiv \textbf{proceduri stocate} pentru toate operatiunile cu baza de date:
+
+\textbf{Gestionare Utilizatori:} \texttt{RegisterUser}, \texttt{LoginUser}, \texttt{GetUserByID}
+
+\textbf{Flux Quiz:} \texttt{GetQuizzes}, \texttt{GetQuestionsByQuiz}, \texttt{GetAnswersByQuestion}, \texttt{StartQuizAttempt}, \texttt{RecordAttempt}, \texttt{CompleteQuizAttempt}, \texttt{GetQuizHistory}, \texttt{GetPendingQuizzes}, \texttt{GetQuizAttemptDetails}
+
+\textbf{Rapoarte Admin (Complexitate 4-7):}
+\begin{itemize}
+    \item \texttt{GetCompanyStats} (Complexitate 4) - Top companii dupa rata de esec
+    \item \texttt{GetTopicStats} (Complexitate 6) - Rata de succes pe topicuri
+    \item \texttt{GetUserLeaderboard} (Complexitate 7) - Clasament utilizatori dupa engagement
+    \item \texttt{GetTopicDifficultyAnalysis} (Complexitate 7) - Analiza succes pe dificultate
+\end{itemize}
+
+\textbf{Contributii si Review-uri:} \texttt{AddContribution}, \texttt{GetPendingContributions}, \texttt{ApproveContribution} (foloseste TRANSACTION), \texttt{RejectContribution}, \texttt{AddReview}, \texttt{GetAllReviews}
+
+\section{Descrierea aplicatiei}
+
+\subsection{Diagrama de clase}
+
+\begin{figure}[h!]
+    \centering
+    \fbox{\begin{minipage}{0.9\textwidth}
+        \centering
+        \vspace{2cm}
+        [INSERATI DIAGRAMA DE CLASE AICI]
+        \vspace{2cm}
+    \end{minipage}}
+    \caption{Diagrama de Clase}
+\end{figure}
+
+\subsection{Structura claselor}
+
+Aplicatia este dezvoltata in \textbf{Python} folosind framework-ul \textbf{Flask}.
+
+\textbf{Clasa MSSQLConnection (database.py):}
+\begin{lstlisting}
+MSSQLConnection
+    __init__(host, port, database, username, password)
+    openConnection() - Deschide conexiunea folosind pyodbc
+    closeConnection() - Inchide conexiunea si cursorul
+    execute_query(query, params) - Executa query cu parametri
+\end{lstlisting}
+
+\textbf{Modulul Principal (app.py):}
+\begin{itemize}
+    \item Functii decorator: login\_required, admin\_required
+    \item Functie utilitara: create\_plot - genereaza grafice cu matplotlib
+    \item Route-uri Flask pentru toate paginile aplicatiei
+\end{itemize}
+
+\subsection{Diagrama de stari si fluxul de lucru}
+
+\textbf{Workflow Utilizator:}
+Login/Register $\rightarrow$ Dashboard Quizzes $\rightarrow$ Selectare Quiz $\rightarrow$ Start Attempt $\rightarrow$ Parcurgere Intrebari $\rightarrow$ Finalizare $\rightarrow$ Vizualizare Rezultat $\rightarrow$ Profile
+
+\textbf{Workflow Administrator:}
+Login $\rightarrow$ Admin Dashboard $\rightarrow$ Vizualizare Rapoarte Grafice / Gestionare Contributii (Approve/Reject) / Vizualizare Reviews
+
+\textbf{Starile unui Quiz Attempt:}
+\begin{itemize}
+    \item \textbf{Created} - Incercare pornita, nicio intrebare raspunsa
+    \item \textbf{In Progress} - Cel putin o intrebare raspunsa, CompletedAt = NULL
+    \item \textbf{Completed} - Toate intrebarile raspunse, CompletedAt = data finalizarii
+\end{itemize}
+
+\textbf{Starile unei Contributii:} Pending $\rightarrow$ Approved/Rejected
+
+\subsection{Prezentarea modului in care se face conexiunea cu baza de date}
+
+Conexiunea se realizeaza folosind driver-ul \textbf{ODBC pentru SQL Server} prin biblioteca pyodbc.
+
+\textbf{String de conexiune:}
+\begin{lstlisting}
+conn_str = (
+    "DRIVER={SQL Server};"
+    "SERVER=localhost,1433;"
+    "DATABASE=master;"
+    "UID=SA;"
+    "PWD=password;"
+    "TrustServerCertificate=yes;"
+)
+\end{lstlisting}
+
+\textbf{Modelul de utilizare (Open-Execute-Close):}
+\begin{lstlisting}
+db = get_db()
+db.execute_query("EXEC NumeProcedura ?", (param1,))
+result = db.cursor.fetchall()
+db.closeConnection()
+\end{lstlisting}
+
+Acest model asigura thread-safety si eliberarea resurselor. Toate query-urile folosesc parametri pentru prevenirea SQL Injection.
+
+\subsection{Capturi de ecran pentru interfete si rapoarte}
+
+\begin{figure}[h!]
+    \centering
+    \fbox{\begin{minipage}{0.45\textwidth}
+        \centering \vspace{1.5cm} [Login Screen] \vspace{1.5cm}
+    \end{minipage}}
+    \hfill
+    \fbox{\begin{minipage}{0.45\textwidth}
+        \centering \vspace{1.5cm} [Dashboard Quizzes] \vspace{1.5cm}
+    \end{minipage}}
+    \caption{Interfete Utilizator - Login si Dashboard}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \fbox{\begin{minipage}{0.45\textwidth}
+        \centering \vspace{1.5cm} [Quiz Question] \vspace{1.5cm}
+    \end{minipage}}
+    \hfill
+    \fbox{\begin{minipage}{0.45\textwidth}
+        \centering \vspace{1.5cm} [Quiz Result] \vspace{1.5cm}
+    \end{minipage}}
+    \caption{Interfete Utilizator - Intrebare si Rezultat}
+\end{figure}
+
+\begin{figure}[h!]
+    \centering
+    \fbox{\begin{minipage}{0.9\textwidth}
+        \centering \vspace{2cm} [Admin Dashboard cu Rapoarte Grafice] \vspace{2cm}
+    \end{minipage}}
+    \caption{Rapoarte Admin - Grafice Statistici}
+\end{figure}
+
+\section{Concluzii}
+
+Proiectul CodeQuiz a permis consolidarea cunostintelor de baze de date relationale si dezvoltare web. Principalele realizari:
+
+\begin{itemize}
+    \item Implementarea unei baze de date normalizate cu 10 tabele si relatii complexe
+    \item Utilizarea exclusiva a procedurilor stocate pentru acces la date
+    \item Dezvoltarea a 4 rapoarte cu complexitati de 4, 6 si 7 puncte
+    \item Generarea de grafice server-side folosind matplotlib
+    \item Implementarea unui sistem de contributii cu flux de aprobare
+    \item Securizarea aplicatiei prin hash-uri de parole si decoratori de autorizare
+\end{itemize}
+
+Provocarile intampinate au inclus gestionarea sesiunilor de quiz incomplete si implementarea tranzactiilor pentru operatii atomice. Solutiile adoptate au crescut robustetea si integritatea datelor.
+
+\section{Bibliografie}
+
+\begin{enumerate}
+    \item Documentatie Flask: \url{https://flask.palletsprojects.com/}
+    \item Documentatie SQL Server T-SQL: \url{https://docs.microsoft.com/en-us/sql/t-sql/}
+    \item Matplotlib User Guide: \url{https://matplotlib.org/stable/users/index.html}
+    \item pyodbc Documentation: \url{https://github.com/mkleehammer/pyodbc/wiki}
+    \item Tailwind CSS Documentation: \url{https://tailwindcss.com/docs}
+\end{enumerate}
+
+\end{document}

@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}User Reviews - Codequiz{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-3xl font-bold text-gray-900 dark:text-white">
+            User Reviews
+        </h2>
+        <a
+            href="{{ url_for('admin_dashboard') }}"
+            class="text-gray-900 bg-white border border-gray-300 focus:outline-none hover:bg-gray-100 focus:ring-4 focus:ring-gray-200 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:border-gray-600 dark:focus:ring-gray-700"
+        >
+            &larr; Back to Dashboard
+        </a>
+    </div>
+
+    <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
+        <table
+            class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400"
+        >
+            <thead
+                class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"
+            >
+                <tr>
+                    <th scope="col" class="px-6 py-3">Date</th>
+                    <th scope="col" class="px-6 py-3">User</th>
+                    <th scope="col" class="px-6 py-3">Question</th>
+                    <th scope="col" class="px-6 py-3">Rating</th>
+                    <th scope="col" class="px-6 py-3">Comment</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if reviews %} {% for review in reviews %}
+                <tr
+                    class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                >
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {{ review.date }}
+                    </td>
+                    <td
+                        class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white"
+                    >
+                        {{ review.username }}
+                    </td>
+                    <td
+                        class="px-6 py-4 max-w-md truncate"
+                        title="{{ review.question }}"
+                    >
+                        {{ review.question }}
+                    </td>
+                    <td class="px-6 py-4">
+                        {% for i in range(review.rating) %}
+                        <span class="text-yellow-400">★</span>
+                        {% endfor %}
+                        <span class="text-gray-400 text-xs"
+                            >({{ review.rating }}/5)</span
+                        >
+                    </td>
+                    <td
+                        class="px-6 py-4 italic text-gray-600 dark:text-gray-300"
+                    >
+                        {% if review.comment %} "{{ review.comment }}" {% else
+                        %}
+                        <span class="text-gray-400">- No comment -</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %} {% else %}
+                <tr>
+                    <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                        No reviews found.
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
