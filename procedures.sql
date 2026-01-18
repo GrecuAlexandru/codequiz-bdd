@@ -233,10 +233,12 @@ BEGIN
         a.Text AS SelectedAnswer,
         a.IsCorrect,
         q.Difficulty,
-        q.ID AS QuestionID
+        q.ID AS QuestionID,
+        c.Name AS CompanyName
     FROM UserProgress up
     JOIN Questions q ON up.QuestionID = q.ID
     JOIN Answers a ON up.SelectedAnswerID = a.ID
+    LEFT JOIN Companies c ON q.CompanyID = c.ID
     WHERE up.AttemptID = @AttemptID;
 END
 GO
@@ -599,7 +601,10 @@ CREATE PROCEDURE GetQuestionDetails
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT Text, Difficulty FROM Questions WHERE ID = @QuestionID;
+    SELECT q.Text, q.Difficulty, c.Name
+    FROM Questions q
+    LEFT JOIN Companies c ON q.CompanyID = c.ID
+    WHERE q.ID = @QuestionID;
 END
 GO
 

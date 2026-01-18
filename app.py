@@ -311,7 +311,12 @@ def quiz_question():
         # Get Question Text
         cursor = db.execute_query("EXEC GetQuestionDetails ?", (current_q_id,))
         q_row = cursor.fetchone()
-        question = {"id": current_q_id, "text": q_row[0], "difficulty": q_row[1]}
+        question = {
+            "id": current_q_id,
+            "text": q_row[0],
+            "difficulty": q_row[1],
+            "company": q_row[2],
+        }
 
         # Get Answers
         cursor = db.execute_query("EXEC GetAnswersByQuestion ?", (current_q_id,))
@@ -456,6 +461,7 @@ def quiz_history(attempt_id):
                     "is_correct": row[2],
                     "difficulty": row[3],
                     "question_id": row[4],
+                    "company": row[5],
                 }
             )
         db.closeConnection()

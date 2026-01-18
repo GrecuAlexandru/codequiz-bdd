@@ -62,8 +62,8 @@
                         <li>
                             <a
                                 href="{{ url_for('quizzes') }}"
-                                class="block py-2 px-3 text-white bg-blue-700 rounded md:bg-transparent md:text-blue-700 md:p-0 dark:text-white md:dark:text-blue-500"
-                                aria-current="page"
+                                class="block py-2 px-3 rounded md:p-0 {{ 'text-white bg-blue-700 md:bg-transparent md:text-blue-700 dark:text-white md:dark:text-blue-500' if request.endpoint == 'quizzes' else 'text-gray-900 hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent' }}"
+                                {% if request.endpoint == 'quizzes' %}aria-current="page"{% endif %}
                             >
                                 Quizzes
                             </a>
@@ -71,7 +71,8 @@
                         <li>
                             <a
                                 href="{{ url_for('profile') }}"
-                                class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent"
+                                class="block py-2 px-3 rounded md:p-0 {{ 'text-white bg-blue-700 md:bg-transparent md:text-blue-700 dark:text-white md:dark:text-blue-500' if request.endpoint == 'profile' else 'text-gray-900 hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent' }}"
+                                {% if request.endpoint == 'profile' %}aria-current="page"{% endif %}
                             >
                                 Profile
                             </a>
@@ -79,7 +80,8 @@
                         <li>
                             <a
                                 href="{{ url_for('contribute') }}"
-                                class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent"
+                                class="block py-2 px-3 rounded md:p-0 {{ 'text-white bg-blue-700 md:bg-transparent md:text-blue-700 dark:text-white md:dark:text-blue-500' if request.endpoint == 'contribute' else 'text-gray-900 hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent' }}"
+                                {% if request.endpoint == 'contribute' %}aria-current="page"{% endif %}
                             >
                                 Contribute
                             </a>
@@ -88,7 +90,8 @@
                         <li>
                             <a
                                 href="{{ url_for('admin_dashboard') }}"
-                                class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-red-700 md:p-0 dark:text-white md:dark:hover:text-red-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent"
+                                class="block py-2 px-3 rounded md:p-0 {{ 'text-white bg-blue-700 md:bg-transparent md:text-blue-700 dark:text-white md:dark:text-blue-500' if 'admin' in request.endpoint else 'text-gray-900 hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-red-700 dark:text-white md:dark:hover:text-red-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent' }}"
+                                {% if 'admin' in request.endpoint %}aria-current="page"{% endif %}
                             >
                                 Admin Dashboard
                             </a>
