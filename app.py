@@ -1,5 +1,3 @@
-import os
-from dotenv import load_dotenv
 from flask import (
     Flask,
     jsonify,
@@ -23,13 +21,11 @@ import base64
 app = Flask(__name__)
 app.secret_key = "secret_key"
 
-load_dotenv()
-
 DB_HOST = "localhost"
 DB_PORT = 1433
 DB_NAME = "master"
-DB_USER = os.getenv("DB_USER", "SA")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
+DB_USER = "sa"
+DB_PASSWORD = "ParolaComplexa123!"
 
 
 def get_db():

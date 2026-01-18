@@ -1,4 +1,3 @@
 pyodbc
 flask
-python-dotenv
 matplotlib

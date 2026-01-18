@@ -1,15 +1,11 @@
 from database import MSSQLConnection
 import re
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 DB_HOST = "localhost"
 DB_PORT = 1433
 DB_NAME = "master"
-DB_USER = os.getenv("DB_USER", "SA")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
+DB_USER = "sa"
+DB_PASSWORD = "ParolaComplexa123!"
 
 
 def execute_sql_file(conn, filename):

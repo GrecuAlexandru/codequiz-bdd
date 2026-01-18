@@ -65,14 +65,11 @@ Functionalitatile principale includ:
 
 \begin{figure}[H]
     \centering
-    \fbox{\begin{minipage}{0.9\textwidth}
-        \centering
-        \vspace{2cm}
-        \includegraphics[width=0.8\textwidth]{dbdiagram.png}
-        \vspace{2cm}
-    \end{minipage}}
+    \includegraphics[width=0.8\textwidth]{dbdiagram.png}
     \caption{Diagrama Bazei de Date}
 \end{figure}
+
+\vspace{2cm}
 
 \subsection{Structura tabelelor}
 
@@ -156,55 +153,30 @@ Aplicatia utilizeaza exclusiv \textbf{proceduri stocate} pentru toate operatiuni
 
 \section{Descrierea aplicatiei}
 
+\subsection{Structura claselor}
+
+Aplicatia este dezvoltata in \textbf{Python} cu \textbf{Flask}. Clasa principala \texttt{MSSQLConnection} gestioneaza conexiunea la baza de date prin metodele \texttt{openConnection()}, \texttt{closeConnection()} si \texttt{execute\_query()}. Modulul \texttt{app.py} defineste decoratorii \texttt{@login\_required} si \texttt{@admin\_required}, functia \texttt{create\_plot()} pentru grafice, si 19 route-uri Flask pentru functionalitatile aplicatiei.
+
 \subsection{Diagrama de clase}
 
-\begin{figure}[h!]
+\begin{figure}[H]
     \centering
-    \fbox{\begin{minipage}{0.9\textwidth}
-        \centering
-        \vspace{2cm}
-        [INSERATI DIAGRAMA DE CLASE AICI]
-        \vspace{2cm}
-    \end{minipage}}
+    \includegraphics[width=0.95\textwidth]{classdiagram.png}
     \caption{Diagrama de Clase}
 \end{figure}
 
-\subsection{Structura claselor}
-
-Aplicatia este dezvoltata in \textbf{Python} folosind framework-ul \textbf{Flask}.
-
-\textbf{Clasa MSSQLConnection (database.py):}
-\begin{lstlisting}
-MSSQLConnection
-    __init__(host, port, database, username, password)
-    openConnection() - Deschide conexiunea folosind pyodbc
-    closeConnection() - Inchide conexiunea si cursorul
-    execute_query(query, params) - Executa query cu parametri
-\end{lstlisting}
-
-\textbf{Modulul Principal (app.py):}
-\begin{itemize}
-    \item Functii decorator: login\_required, admin\_required
-    \item Functie utilitara: create\_plot - genereaza grafice cu matplotlib
-    \item Route-uri Flask pentru toate paginile aplicatiei
-\end{itemize}
-
 \subsection{Diagrama de stari si fluxul de lucru}
 
-\textbf{Workflow Utilizator:}
-Login/Register $\rightarrow$ Dashboard Quizzes $\rightarrow$ Selectare Quiz $\rightarrow$ Start Attempt $\rightarrow$ Parcurgere Intrebari $\rightarrow$ Finalizare $\rightarrow$ Vizualizare Rezultat $\rightarrow$ Profile
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{FlowChart.png}
+    \caption{Fluxul de Lucru General}
+\end{figure}
 
-\textbf{Workflow Administrator:}
-Login $\rightarrow$ Admin Dashboard $\rightarrow$ Vizualizare Rapoarte Grafice / Gestionare Contributii (Approve/Reject) / Vizualizare Reviews
-
-\textbf{Starile unui Quiz Attempt:}
-\begin{itemize}
-    \item \textbf{Created} - Incercare pornita, nicio intrebare raspunsa
-    \item \textbf{In Progress} - Cel putin o intrebare raspunsa, CompletedAt = NULL
-    \item \textbf{Completed} - Toate intrebarile raspunse, CompletedAt = data finalizarii
-\end{itemize}
-
-\textbf{Starile unei Contributii:} Pending $\rightarrow$ Approved/Rejected
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth, height=1.0\textheight, keepaspectratio]{DiagramaStari.png}
+\end{figure}
 
 \subsection{Prezentarea modului in care se face conexiunea cu baza de date}
 
@@ -230,40 +202,48 @@ result = db.cursor.fetchall()
 db.closeConnection()
 \end{lstlisting}
 
-Acest model asigura thread-safety si eliberarea resurselor. Toate query-urile folosesc parametri pentru prevenirea SQL Injection.
-
 \subsection{Capturi de ecran pentru interfete si rapoarte}
 
-\begin{figure}[h!]
+\begin{figure}[H]
     \centering
-    \fbox{\begin{minipage}{0.45\textwidth}
-        \centering \vspace{1.5cm} [Login Screen] \vspace{1.5cm}
-    \end{minipage}}
-    \hfill
-    \fbox{\begin{minipage}{0.45\textwidth}
-        \centering \vspace{1.5cm} [Dashboard Quizzes] \vspace{1.5cm}
-    \end{minipage}}
-    \caption{Interfete Utilizator - Login si Dashboard}
+    \setlength{\abovecaptionskip}{3pt}
+    \includegraphics[width=0.85\textwidth]{login.png}
+    \caption{Login Screen}
 \end{figure}
 
-\begin{figure}[h!]
+\begin{figure}[H]
     \centering
-    \fbox{\begin{minipage}{0.45\textwidth}
-        \centering \vspace{1.5cm} [Quiz Question] \vspace{1.5cm}
-    \end{minipage}}
-    \hfill
-    \fbox{\begin{minipage}{0.45\textwidth}
-        \centering \vspace{1.5cm} [Quiz Result] \vspace{1.5cm}
-    \end{minipage}}
-    \caption{Interfete Utilizator - Intrebare si Rezultat}
+    \setlength{\abovecaptionskip}{3pt}
+    \includegraphics[width=0.85\textwidth]{dashboardquizzes.png}
+    \caption{Dashboard Quizzes}
 \end{figure}
 
-\begin{figure}[h!]
+\begin{figure}[H]
     \centering
-    \fbox{\begin{minipage}{0.9\textwidth}
-        \centering \vspace{2cm} [Admin Dashboard cu Rapoarte Grafice] \vspace{2cm}
-    \end{minipage}}
-    \caption{Rapoarte Admin - Grafice Statistici}
+    \setlength{\abovecaptionskip}{3pt}
+    \includegraphics[width=0.85\textwidth]{quiz.png}
+    \caption{Quiz Question}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \setlength{\abovecaptionskip}{3pt}
+    \includegraphics[width=0.85\textwidth]{quizresult.png}
+    \caption{Quiz Result}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \setlength{\abovecaptionskip}{3pt}
+    \includegraphics[width=0.85\textwidth]{contribution.png}
+    \caption{Contribute Page}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \setlength{\abovecaptionskip}{3pt}
+    \includegraphics[width=0.85\textwidth]{admindashboard.png}
+    \caption{Admin Dashboard}
 \end{figure}
 
 \section{Concluzii}
@@ -273,22 +253,21 @@ Proiectul CodeQuiz a permis consolidarea cunostintelor de baze de date relationa
 \begin{itemize}
     \item Implementarea unei baze de date normalizate cu 10 tabele si relatii complexe
     \item Utilizarea exclusiva a procedurilor stocate pentru acces la date
-    \item Dezvoltarea a 4 rapoarte cu complexitati de 4, 6 si 7 puncte
     \item Generarea de grafice server-side folosind matplotlib
     \item Implementarea unui sistem de contributii cu flux de aprobare
     \item Securizarea aplicatiei prin hash-uri de parole si decoratori de autorizare
 \end{itemize}
 
-Provocarile intampinate au inclus gestionarea sesiunilor de quiz incomplete si implementarea tranzactiilor pentru operatii atomice. Solutiile adoptate au crescut robustetea si integritatea datelor.
-
 \section{Bibliografie}
 
-\begin{enumerate}
-    \item Documentatie Flask: \url{https://flask.palletsprojects.com/}
-    \item Documentatie SQL Server T-SQL: \url{https://docs.microsoft.com/en-us/sql/t-sql/}
+\begin{enumerate}\small
+    \item Documentatie Flask: \url{https://flask.palletsprojects.com/en/stable/}
+    \item Laboratorul 07 - SQL Server : Interogari, Variabile si XML: \url{Laboratorul 07 - SQL Server : Interogari, Variabile si XML}
+    \item Laboratorul 08 - SQLServer: DML, Cursori si Programabilitate: \url{https://ocw.cs.pub.ro/courses/bdd/laboratoare/08}
+    \item Laboratorul 09 - Conectare la o Baza de Date: \url{https://ocw.cs.pub.ro/courses/bdd/laboratoare/09}
     \item Matplotlib User Guide: \url{https://matplotlib.org/stable/users/index.html}
-    \item pyodbc Documentation: \url{https://github.com/mkleehammer/pyodbc/wiki}
     \item Tailwind CSS Documentation: \url{https://tailwindcss.com/docs}
+    \item Flowbite - Tailwind CSS component library: \url{https://flowbite.com/docs/getting-started/introduction/}
 \end{enumerate}
 
 \end{document}
